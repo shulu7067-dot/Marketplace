@@ -1,33 +1,33 @@
-# Marketplace
+# Marka — Marketplace (HTML/CSS/JS)
 
-React + TypeScript + Vite project, configured for GitHub Pages deployment. The
-Vite `base` is set to `./` (relative), so it deploys correctly no matter what
-you name the GitHub repository.
-
-## Local development
-```
-npm install
-npm run dev
-```
-
-## Build
-```
-npm run build
-npm run preview
-```
-
-## Deploy
-Push to `main` — the included GitHub Actions workflow (`.github/workflows/deploy.yml`)
-builds and publishes `dist/` automatically.
-
-In your repo: **Settings → Pages → Build and deployment → Source → GitHub Actions**.
+This is a plain HTML, CSS, and vanilla JavaScript version of the Marka
+marketplace home page — a straight language port of the original React/TSX
+project, with the same layout, colors, fonts, and interactions. No build
+step, no framework, no backend.
 
 ## Structure
+
 ```
-src/
-  main.tsx          entry point
-  App.tsx           renders HomePage
-  home-page.tsx      Home page component
-  design-system.tsx  design system / style guide component
-  index.css         Tailwind entry
+index.html      Page markup
+css/style.css   Design tokens, layout, and responsive styles
+js/script.js    Mock data + rendering + interactivity (favorites, bottom nav tabs)
 ```
+
+## Running it
+
+Just open `index.html` in a browser, or serve the folder with any static
+file server, e.g.:
+
+```bash
+npx serve .
+# or
+python3 -m http.server
+```
+
+## Notes
+
+- Fonts (Fraunces, Inter, IBM Plex Mono) load from Google Fonts.
+- Icons load from the Lucide CDN.
+- All listing/category data currently lives in `js/script.js` as plain
+  JavaScript arrays (`CATEGORIES`, `FEATURED`, `LISTINGS`) — swap these out
+  or fetch them from an API once you build the backend.

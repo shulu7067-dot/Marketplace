@@ -3,10 +3,114 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Marketplace</title>
+    <title>Marka — Find your next great trade</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+
+    <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div class="page">
+      <div class="shell">
+
+        <!-- Mobile / tablet top bar -->
+        <header class="topbar topbar--mobile">
+          <button class="icon-btn" id="menuBtn" aria-label="Menu">
+            <i data-lucide="menu"></i>
+          </button>
+          <div class="brand">
+            <span class="brand-mark">M</span>
+            <span class="brand-name">Marka</span>
+          </div>
+          <button class="icon-btn icon-btn--dot" aria-label="Notifications">
+            <i data-lucide="bell"></i>
+          </button>
+        </header>
+
+        <!-- Desktop / laptop top nav -->
+        <header class="topbar topbar--desktop">
+          <div class="brand">
+            <span class="brand-mark brand-mark--lg">M</span>
+            <span class="brand-name brand-name--lg">Marka</span>
+          </div>
+          <nav class="nav-links" id="navLinks"></nav>
+          <div class="topbar-actions">
+            <button class="icon-btn icon-btn--dot" aria-label="Notifications">
+              <i data-lucide="bell"></i>
+            </button>
+            <button class="post-ad-btn">
+              <i data-lucide="plus" class="accent-icon"></i> Post ad
+            </button>
+            <div class="avatar">JD</div>
+          </div>
+        </header>
+
+        <!-- Greeting + search -->
+        <section class="hero">
+          <h1 class="hero-title">Find your next great trade.</h1>
+          <div class="search-row">
+            <div class="search-field">
+              <i data-lucide="search" class="search-icon"></i>
+              <input type="text" placeholder="Search bikes, homes, phones…" aria-label="Search listings" />
+            </div>
+            <button class="filter-btn" aria-label="Filters">
+              <i data-lucide="sliders-horizontal"></i>
+            </button>
+          </div>
+        </section>
+
+        <!-- Categories -->
+        <section class="section">
+          <div class="section-head">
+            <h2 class="section-title">Categories</h2>
+          </div>
+          <div class="categories-grid" id="categoriesGrid"></div>
+        </section>
+
+        <!-- Promo banner -->
+        <section class="section">
+          <div class="promo">
+            <div class="promo-copy">
+              <div class="promo-eyebrow">Sell faster</div>
+              <div class="promo-headline">Boost your ad to the top of search</div>
+            </div>
+            <button class="promo-btn" aria-label="Boost your ad">
+              <i data-lucide="arrow-right"></i>
+            </button>
+          </div>
+        </section>
+
+        <!-- Featured -->
+        <section class="section">
+          <div class="section-head">
+            <h2 class="section-title">Featured</h2>
+            <div class="show-all">Show all <i data-lucide="chevron-right"></i></div>
+          </div>
+          <div class="featured-row" id="featuredRow"></div>
+        </section>
+
+        <!-- Latest ads -->
+        <section class="section section--latest">
+          <div class="section-head">
+            <h2 class="section-title">Latest ads</h2>
+            <div class="show-all">Show all <i data-lucide="chevron-right"></i></div>
+          </div>
+          <div class="listings-grid" id="listingsGrid"></div>
+        </section>
+
+        <!-- Bottom nav (mobile & tablet only) -->
+        <nav class="bottom-nav" id="bottomNav"></nav>
+      </div>
+    </div>
+
+    <script src="js/script.js"></script>
   </body>
 </html>
