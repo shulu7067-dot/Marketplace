@@ -299,46 +299,89 @@ i[data-lucide] {
 @media (min-width: 1024px) { .show-all { font-size: 14px; } }
 
 /* -------------------------------- Categories -------------------------------- */
-.categories-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+.categories-carousel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-@media (min-width: 640px) { .categories-grid { grid-template-columns: repeat(4, 1fr); } }
-@media (min-width: 768px) { .categories-grid { grid-template-columns: repeat(6, 1fr); gap: 16px; } }
+
+.categories-grid {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+  flex: 1;
+  min-width: 0;
+}
+.categories-grid::-webkit-scrollbar { display: none; }
 
 .category-card {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 16px 0;
-  border-radius: 16px;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
   background: var(--surface);
   border: 1px solid var(--border);
   min-height: 44px;
   cursor: pointer;
+  flex: 0 0 46%;
+  scroll-snap-align: start;
 }
-@media (min-width: 1024px) { .category-card { padding: 20px 0; } }
+
+/* Show progressively more categories per "page" as the viewport widens,
+   while keeping cards compact (icon + label in a single row). */
+@media (min-width: 480px) { .category-card { flex-basis: 31%; } }
+@media (min-width: 640px) { .category-card { flex-basis: 23%; } }
+@media (min-width: 768px) { .categories-grid { gap: 12px; } .category-card { flex-basis: 18.5%; } }
+@media (min-width: 1024px) { .category-card { flex-basis: 15.5%; padding: 12px 14px; } }
 
 .category-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.category-icon svg, .category-icon i { width: 19px; height: 19px; }
+.category-icon svg, .category-icon i { width: 17px; height: 17px; }
 
 .category-label {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 500;
-  text-align: center;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-@media (min-width: 1024px) { .category-label { font-size: 14px; } }
+@media (min-width: 1024px) { .category-label { font-size: 13.5px; } }
+
+/* Arrow controls: hidden on touch-first small screens (swipe is primary there),
+   shown from tablet width up where a pointer is more likely available. */
+.carousel-arrow {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+.carousel-arrow svg, .carousel-arrow i { width: 16px; height: 16px; }
+.carousel-arrow:hover { background: var(--surface-alt); }
+
+@media (min-width: 640px) {
+  .carousel-arrow { display: flex; }
+}
 
 /* ---------------------------------- Promo ----------------------------------- */
 .promo {
