@@ -185,12 +185,40 @@ document.addEventListener("click", (e) => {
   const tabBtn = e.target.closest("[data-tab]");
   if (tabBtn) {
     setTab(tabBtn.dataset.tab);
+    return;
   }
 });
+
+function initCategoriesCarousel() {
+  const track = document.getElementById("categoriesGrid");
+  const left = document.getElementById("catArrowLeft");
+  const right = document.getElementById("catArrowRight");
+  if (!track || !left || !right) return;
+
+  const scrollByPage = (dir) => {
+    // Scroll by ~80% of the visible width so one arrow click moves roughly
+    // "one page" of categories while keeping a peek of the next card.
+    track.scrollBy({ left: dir * track.clientWidth * 0.8, behavior: "smooth" });
+  };
+
+  left.addEventListener("click", () => scrollByPage(-1));
+  right.addEventListener("click", () => scrollByPage(1));
+
+  const updateArrows = () => {
+    const maxScroll = track.scrollWidth - track.clientWidth - 1;
+    left.style.visibility = track.scrollLeft <= 0 ? "hidden" : "visible";
+    right.style.visibility = track.scrollLeft >= maxScroll ? "hidden" : "visible";
+  };
+
+  track.addEventListener("scroll", updateArrows);
+  window.addEventListener("resize", updateArrows);
+  updateArrows();
+}
 
 /* ---------------------------------- Init --------------------------------------- */
 document.addEventListener("DOMContentLoaded", () => {
   renderAll();
+  initCategoriesCarousel();
 });
 
 // In case lucide loads after DOMContentLoaded (it's deferred), re-run icon creation.
