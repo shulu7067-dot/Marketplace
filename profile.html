@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Your profile — Marka</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/listing.css" />
+    <link rel="stylesheet" href="css/profile.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="shell">
+
+        <!-- Mobile / tablet top bar -->
+        <header class="topbar topbar--mobile">
+          <button class="icon-btn" id="menuBtn" aria-label="Menu">
+            <i data-lucide="menu"></i>
+          </button>
+          <div class="brand">
+            <span class="brand-mark">M</span>
+            <span class="brand-name">Marka</span>
+          </div>
+          <button class="icon-btn icon-btn--dot" aria-label="Notifications">
+            <i data-lucide="bell"></i>
+          </button>
+        </header>
+
+        <!-- Desktop / laptop top nav -->
+        <header class="topbar topbar--desktop">
+          <div class="brand">
+            <span class="brand-mark brand-mark--lg">M</span>
+            <span class="brand-name brand-name--lg">Marka</span>
+          </div>
+          <nav class="nav-links" id="navLinks"></nav>
+          <div class="topbar-actions">
+            <button class="icon-btn icon-btn--dot" aria-label="Notifications">
+              <i data-lucide="bell"></i>
+            </button>
+            <a class="post-ad-btn" href="sell.html">
+              <i data-lucide="plus" class="accent-icon"></i> Post ad
+            </a>
+            <a class="avatar" href="profile.html" aria-label="Your profile">JD</a>
+          </div>
+        </header>
+
+        <!-- Breadcrumb -->
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+          <a href="index.html">Home</a>
+          <i data-lucide="chevron-right"></i>
+          <span aria-current="page">Profile</span>
+        </nav>
+
+        <!-- Profile header -->
+        <section class="profile-header">
+          <div class="profile-cover"></div>
+          <div class="profile-identity">
+            <div class="profile-avatar" id="profileAvatar">JD</div>
+            <button class="profile-edit-btn" id="editProfileBtn">
+              <i data-lucide="pencil"></i> Edit profile
+            </button>
+          </div>
+          <div class="profile-name-row">
+            <h1 class="profile-name" id="profileName"></h1>
+            <span class="verified-tag" id="profileVerified"><i data-lucide="badge-check"></i> Verified</span>
+          </div>
+          <div class="profile-meta">
+            <span class="profile-meta-item"><i data-lucide="map-pin"></i><span id="profileLoc"></span></span>
+            <span class="profile-meta-item"><i data-lucide="calendar"></i><span id="profileSince"></span></span>
+            <span class="profile-meta-item seller-rating"><i data-lucide="star"></i><span id="profileRating"></span></span>
+          </div>
+          <p class="profile-bio" id="profileBio"></p>
+        </section>
+
+        <!-- Stats -->
+        <section class="section">
+          <div class="stats-grid" id="statsGrid"></div>
+        </section>
+
+        <!-- Tabs -->
+        <section class="section">
+          <div class="profile-tabs" id="profileTabs" role="tablist">
+            <button class="profile-tab active" data-tab-panel="listings" role="tab" aria-selected="true">Listings</button>
+            <button class="profile-tab" data-tab-panel="favorites" role="tab" aria-selected="false">Favorites</button>
+            <button class="profile-tab" data-tab-panel="reviews" role="tab" aria-selected="false">Reviews</button>
+          </div>
+
+          <!-- Listings panel -->
+          <div class="tab-panel" id="panel-listings">
+            <div class="listings-grid" id="myListingsGrid"></div>
+          </div>
+
+          <!-- Favorites panel -->
+          <div class="tab-panel" id="panel-favorites" hidden>
+            <div class="listings-grid" id="myFavoritesGrid"></div>
+            <div class="empty-state" id="favoritesEmpty" hidden>
+              <i data-lucide="heart"></i>
+              <p>Items you favorite will show up here.</p>
+            </div>
+          </div>
+
+          <!-- Reviews panel -->
+          <div class="tab-panel" id="panel-reviews" hidden>
+            <div class="reviews-list" id="reviewsList"></div>
+          </div>
+        </section>
+
+        <!-- Account settings -->
+        <section class="section section--latest">
+          <div class="section-head">
+            <h2 class="section-title">Account</h2>
+          </div>
+          <div class="settings-list" id="settingsList"></div>
+        </section>
+
+        <!-- Bottom nav — mobile & tablet only; laptop/desktop use the top nav above -->
+        <nav class="bottom-nav" id="bottomNav"></nav>
+      </div>
+    </div>
+
+    <script src="js/common.js"></script>
+    <script src="js/listing-data.js"></script>
+    <script src="js/profile-data.js"></script>
+    <script src="js/profile.js"></script>
+  </body>
+</html>
