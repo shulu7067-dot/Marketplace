@@ -136,13 +136,16 @@ i[data-lucide] {
   font-size: 14px;
   font-weight: 500;
 }
-.nav-links span {
+.nav-links span,
+.nav-links a {
   color: var(--text-secondary);
   border-bottom: 2px solid transparent;
   padding-bottom: 4px;
   cursor: pointer;
+  text-decoration: none;
 }
-.nav-links span.active {
+.nav-links span.active,
+.nav-links a.active {
   color: var(--primary);
   border-bottom-color: var(--accent);
 }
@@ -334,6 +337,7 @@ i[data-lucide] {
   cursor: pointer;
   flex: 0 0 46%;
   scroll-snap-align: start;
+  text-decoration: none;
 }
 
 /* Show progressively more categories per "page" as the viewport widens,

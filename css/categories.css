@@ -1,0 +1,134 @@
+/* ============================================================================
+   MARKA — Categories pages additions
+   Loaded after style.css (and listing.css for .breadcrumb / .btn-primary /
+   .condition-badge). Covers the All-categories grid (categories.html) and
+   the individual category header + subcategory pills (category.html).
+   ============================================================================ */
+
+.categories-heading { padding: 18px 16px 4px; }
+@media (min-width: 640px) { .categories-heading { padding: 20px 24px 4px; } }
+@media (min-width: 1024px) { .categories-heading { padding: 24px 32px 4px; } }
+
+.categories-page-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 24px;
+  color: var(--text-primary);
+  margin: 0 0 6px;
+}
+@media (min-width: 1024px) { .categories-page-title { font-size: 30px; } }
+.categories-page-subtitle { font-size: 13.5px; color: var(--text-secondary); margin: 0; }
+
+/* -------------------------------- All-categories grid -------------------------------- */
+.categories-full-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+@media (min-width: 640px) { .categories-full-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
+@media (min-width: 1024px) { .categories-full-grid { grid-template-columns: repeat(3, 1fr); gap: 20px; } }
+
+.category-full-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  text-decoration: none;
+  color: inherit;
+}
+.category-full-card:hover { border-color: var(--secondary); }
+
+.category-full-icon {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.category-full-icon svg, .category-full-icon i { width: 20px; height: 20px; }
+
+.category-full-label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+.category-full-desc { font-size: 12.5px; color: var(--text-secondary); line-height: 1.45; margin: 2px 0 0; }
+.category-full-count {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--secondary);
+  font-family: var(--font-mono);
+  margin-top: auto;
+  padding-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.category-full-count svg, .category-full-count i { width: 12px; height: 12px; }
+
+/* ------------------------------ Individual category header ---------------------------- */
+.category-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+}
+@media (min-width: 640px) { .category-hero { padding: 18px 24px; } }
+@media (min-width: 1024px) { .category-hero { padding: 20px 32px; } }
+
+.category-hero-icon {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.category-hero-icon svg, .category-hero-icon i { width: 24px; height: 24px; }
+
+.category-hero-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 22px;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+@media (min-width: 1024px) { .category-hero-title { font-size: 27px; } }
+.category-hero-desc { font-size: 13px; color: var(--text-secondary); margin: 0; }
+
+/* --------------------------------- Subcategory pills --------------------------------- */
+.subcat-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 0 16px 16px;
+  scrollbar-width: none;
+}
+.subcat-row::-webkit-scrollbar { display: none; }
+@media (min-width: 640px) { .subcat-row { padding: 0 24px 18px; } }
+@media (min-width: 1024px) { .subcat-row { padding: 0 32px 20px; flex-wrap: wrap; overflow: visible; } }
+
+.subcat-pill {
+  flex-shrink: 0;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.subcat-pill.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  font-weight: 600;
+}
