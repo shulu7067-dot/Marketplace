@@ -592,6 +592,17 @@ i[data-lucide] {
   cursor: pointer;
 }
 
+/* Similar-listings row (listing.html) reuses .featured-row's horizontal-scroll
+   flex layout but renders .listing-card items. Without an explicit width those
+   cards squeeze down to fit, so give them the same sizing .featured-card gets. */
+.featured-row .listing-card {
+  min-width: 220px;
+  flex-shrink: 0;
+}
+@media (min-width: 1024px) {
+  .featured-row .listing-card { min-width: 0; flex-shrink: 1; width: 100%; }
+}
+
 .listing-media {
   height: 112px;
   position: relative;
