@@ -88,11 +88,10 @@
 @media (min-width: 640px) { .listing-title { font-size: 24px; } }
 @media (min-width: 1024px) { .listing-title { font-size: 28px; } }
 
-/* Big price uses the same "ticket stub" shape as the card price, scaled up. */
-.price-stub--lg .price-stub-inner { padding: 8px 16px; border-radius: 9px 3px 3px 9px; }
-.price-stub--lg .price-text { font-size: 22px; }
-.price-stub--lg .price-stub-dot { width: 10px; height: 10px; }
-@media (min-width: 1024px) { .price-stub--lg .price-text { font-size: 26px; } }
+/* Big price: flat black text, no background/dot. */
+.price-stub--lg .price-stub-inner { padding: 0; }
+.price-stub--lg .price-text { font-size: 26px; color: #000; }
+@media (min-width: 1024px) { .price-stub--lg .price-text { font-size: 30px; } }
 
 .listing-meta {
   display: flex;

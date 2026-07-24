@@ -542,30 +542,22 @@ i[data-lucide] {
 
 .price-stub {
   display: inline-flex;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.12));
 }
 .price-stub-inner {
-  padding: 4px 10px;
-  background: var(--primary);
-  color: #fff;
-  border-radius: 7px 2px 2px 7px;
+  padding: 0;
+  background: none;
+  color: #000;
   position: relative;
 }
 .price-stub-inner span.price-text {
   font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   line-height: 1;
+  color: #000;
 }
 .price-stub-dot {
-  position: absolute;
-  right: -1px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--bg);
+  display: none;
 }
 
 .card-time {
