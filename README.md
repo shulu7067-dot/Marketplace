@@ -1,6 +1,8 @@
 # Marketplace
 
-React + TypeScript + Vite project, configured for GitHub Pages deployment at `/Marketplace/`.
+React + TypeScript + Vite project, configured for GitHub Pages deployment. The
+Vite `base` is set to `./` (relative), so it deploys correctly no matter what
+you name the GitHub repository.
 
 ## Local development
 ```
