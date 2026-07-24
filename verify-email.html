@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verify your email — Marka</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/listing.css" />
+    <link rel="stylesheet" href="css/sell.css" />
+    <link rel="stylesheet" href="css/auth.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="auth-page">
+        <a class="auth-back" href="signup.html">
+          <i data-lucide="arrow-left"></i> Back
+        </a>
+
+        <div class="auth-wrap">
+          <a class="auth-brand" href="index.html">
+            <span class="brand-mark">M</span>
+            <span class="brand-name">Marka</span>
+          </a>
+
+          <div class="auth-card">
+            <!-- Code entry -->
+            <div id="codeView">
+              <div class="auth-head">
+                <div class="auth-success-icon" style="background:var(--accent-soft); color:var(--accent);"><i data-lucide="mail"></i></div>
+                <h1 class="auth-title">Verify your email</h1>
+                <p class="auth-subtitle">Enter the 6-digit code we sent to <strong id="targetEmail">your email</strong>.</p>
+              </div>
+
+              <form id="verifyForm" novalidate>
+                <div class="code-row" id="codeRow">
+                  <label class="sr-only" for="code0">Digit 1</label>
+                  <input class="code-box" id="code0" inputmode="numeric" maxlength="1" autocomplete="one-time-code" />
+                  <label class="sr-only" for="code1">Digit 2</label>
+                  <input class="code-box" id="code1" inputmode="numeric" maxlength="1" />
+                  <label class="sr-only" for="code2">Digit 3</label>
+                  <input class="code-box" id="code2" inputmode="numeric" maxlength="1" />
+                  <label class="sr-only" for="code3">Digit 4</label>
+                  <input class="code-box" id="code3" inputmode="numeric" maxlength="1" />
+                  <label class="sr-only" for="code4">Digit 5</label>
+                  <input class="code-box" id="code4" inputmode="numeric" maxlength="1" />
+                  <label class="sr-only" for="code5">Digit 6</label>
+                  <input class="code-box" id="code5" inputmode="numeric" maxlength="1" />
+                </div>
+                <div class="form-error" id="codeError" style="justify-content:center;"><i data-lucide="alert-circle"></i><span>Enter all 6 digits.</span></div>
+
+                <button type="submit" class="auth-submit" id="verifySubmitBtn" style="margin-top:14px;">
+                  <span class="spinner"></span>
+                  <i data-lucide="shield-check" class="submit-icon"></i>
+                  <span class="submit-label">Verify email</span>
+                </button>
+
+                <div class="auth-resend">
+                  Didn't get a code?
+                  <button type="button" id="resendBtn">Resend code</button>
+                  <span class="resend-timer" id="resendTimer"></span>
+                </div>
+              </form>
+            </div>
+
+            <!-- Success -->
+            <div id="verifiedView" class="auth-success" hidden>
+              <div class="auth-success-icon"><i data-lucide="badge-check"></i></div>
+              <h2 class="auth-success-title">Email verified</h2>
+              <p class="auth-success-text">Your account is all set. You're ready to start buying, selling, and trading on Marka.</p>
+              <a class="btn-primary" href="index.html" style="width:100%;">
+                <i data-lucide="arrow-right"></i> Continue to Marka
+              </a>
+            </div>
+          </div>
+
+          <p class="auth-foot">Wrong email? <a href="signup.html">Start over</a></p>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/common.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/verify-email.js"></script>
+  </body>
+</html>

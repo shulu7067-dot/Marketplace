@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title id="pageTitle">Category — Marka</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/listing.css" />
+    <link rel="stylesheet" href="css/browse.css" />
+    <link rel="stylesheet" href="css/categories.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="shell">
+
+        <!-- Mobile / tablet top bar -->
+        <header class="topbar topbar--mobile">
+          <button class="icon-btn" id="menuBtn" aria-label="Menu">
+            <i data-lucide="menu"></i>
+          </button>
+          <div class="brand">
+            <span class="brand-mark">M</span>
+            <span class="brand-name">Marka</span>
+          </div>
+          <button class="icon-btn icon-btn--dot" aria-label="Notifications">
+            <i data-lucide="bell"></i>
+          </button>
+        </header>
+
+        <!-- Desktop / laptop top nav -->
+        <header class="topbar topbar--desktop">
+          <div class="brand">
+            <span class="brand-mark brand-mark--lg">M</span>
+            <span class="brand-name brand-name--lg">Marka</span>
+          </div>
+          <nav class="nav-links" id="navLinks"></nav>
+          <div class="topbar-actions">
+            <button class="icon-btn icon-btn--dot" aria-label="Notifications">
+              <i data-lucide="bell"></i>
+            </button>
+            <a class="post-ad-btn" href="sell.html">
+              <i data-lucide="plus" class="accent-icon"></i> Post ad
+            </a>
+            <a class="avatar" href="profile.html" aria-label="Your profile">JD</a>
+          </div>
+        </header>
+
+        <!-- Breadcrumb -->
+        <nav class="breadcrumb" id="breadcrumb" aria-label="Breadcrumb"></nav>
+
+        <!-- Category header -->
+        <section class="category-hero" id="categoryHero"></section>
+
+        <!-- Subcategory pills -->
+        <nav class="subcat-row" id="subcatRow" aria-label="Subcategories"></nav>
+
+        <!-- Results -->
+        <section class="section section--latest" id="resultsSection">
+          <div class="results-header">
+            <div class="results-count" id="resultsCount" aria-live="polite"></div>
+            <div class="results-sort-label">
+              <span>Sort by</span>
+              <label class="sr-only" for="categorySort">Sort results</label>
+              <select class="filter-select" id="categorySort" aria-label="Sort results"></select>
+            </div>
+          </div>
+
+          <div class="listings-grid" id="categoryGrid"></div>
+
+          <div class="empty-state" id="emptyState" hidden>
+            <div class="empty-illustration"><i data-lucide="search-x"></i></div>
+            <h3 class="empty-title">No listings here yet</h3>
+            <p class="empty-text">Try a different subcategory, or browse all categories.</p>
+            <a class="btn-primary" href="categories.html">
+              <i data-lucide="grid-3x3"></i> All categories
+            </a>
+          </div>
+        </section>
+
+        <!-- Bottom nav (mobile & tablet only) -->
+        <nav class="bottom-nav" id="bottomNav"></nav>
+      </div>
+    </div>
+
+    <script src="js/common.js"></script>
+    <script src="js/listing-data.js"></script>
+    <script src="js/browse-data.js"></script>
+    <script src="js/categories-data.js"></script>
+    <script src="js/category.js"></script>
+  </body>
+</html>

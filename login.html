@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Log in — Marka</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/listing.css" />
+    <link rel="stylesheet" href="css/sell.css" />
+    <link rel="stylesheet" href="css/auth.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="auth-page">
+        <a class="auth-back" href="index.html">
+          <i data-lucide="arrow-left"></i> Back to Marka
+        </a>
+
+        <div class="auth-wrap">
+          <a class="auth-brand" href="index.html">
+            <span class="brand-mark">M</span>
+            <span class="brand-name">Marka</span>
+          </a>
+
+          <div class="auth-card">
+            <div class="auth-head">
+              <h1 class="auth-title">Welcome back</h1>
+              <p class="auth-subtitle">Log in to manage your ads, favorites, and messages.</p>
+            </div>
+
+            <form id="loginForm" novalidate>
+              <div class="form-group" id="loginEmailGroup">
+                <label class="form-label" for="loginEmail">Email</label>
+                <input class="form-input" type="email" id="loginEmail" name="email" placeholder="you@example.com" autocomplete="email" required />
+                <div class="form-error"><i data-lucide="alert-circle"></i><span>Enter a valid email address.</span></div>
+              </div>
+
+              <div class="form-group" id="loginPasswordGroup">
+                <div class="field-hint-row">
+                  <label class="form-label" for="loginPassword">Password</label>
+                  <a class="field-inline-link" href="forgot-password.html">Forgot password?</a>
+                </div>
+                <div class="auth-field">
+                  <input class="form-input" type="password" id="loginPassword" name="password" placeholder="Enter your password" autocomplete="current-password" required />
+                  <button type="button" class="field-toggle-btn" data-toggle-password aria-label="Show password">
+                    <i data-lucide="eye"></i>
+                  </button>
+                </div>
+                <div class="form-error"><i data-lucide="alert-circle"></i><span>Enter your password.</span></div>
+              </div>
+
+              <div class="auth-check-row">
+                <input type="checkbox" id="loginRemember" name="remember" checked />
+                <label for="loginRemember">Keep me logged in on this device</label>
+              </div>
+
+              <button type="submit" class="auth-submit" id="loginSubmitBtn">
+                <span class="spinner"></span>
+                <i data-lucide="log-in" class="submit-icon"></i>
+                <span class="submit-label">Log in</span>
+              </button>
+
+              <div class="auth-toast" id="loginToast" hidden>
+                <i data-lucide="check-circle"></i>
+                <span>Logged in — taking you to your profile…</span>
+              </div>
+            </form>
+
+            <div class="auth-divider">or continue with</div>
+            <div class="auth-social-row">
+              <button type="button" class="btn-secondary"><i data-lucide="chrome"></i> Google</button>
+              <button type="button" class="btn-secondary"><i data-lucide="apple"></i> Apple</button>
+            </div>
+          </div>
+
+          <p class="auth-foot">Don't have an account? <a href="signup.html">Sign up</a></p>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/common.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/login.js"></script>
+  </body>
+</html>

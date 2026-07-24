@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign up — Marka</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/listing.css" />
+    <link rel="stylesheet" href="css/sell.css" />
+    <link rel="stylesheet" href="css/auth.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="auth-page">
+        <a class="auth-back" href="index.html">
+          <i data-lucide="arrow-left"></i> Back to Marka
+        </a>
+
+        <div class="auth-wrap">
+          <a class="auth-brand" href="index.html">
+            <span class="brand-mark">M</span>
+            <span class="brand-name">Marka</span>
+          </a>
+
+          <div class="auth-card">
+            <div class="auth-head">
+              <h1 class="auth-title">Create your account</h1>
+              <p class="auth-subtitle">Join Marka to buy, sell, and trade with people near you.</p>
+            </div>
+
+            <form id="signupForm" novalidate>
+              <div class="form-group" id="signupNameGroup">
+                <label class="form-label" for="signupName">Full name</label>
+                <input class="form-input" type="text" id="signupName" name="name" placeholder="Jordan Diaz" autocomplete="name" required />
+                <div class="form-error"><i data-lucide="alert-circle"></i><span>Enter your full name.</span></div>
+              </div>
+
+              <div class="form-group" id="signupEmailGroup">
+                <label class="form-label" for="signupEmail">Email</label>
+                <input class="form-input" type="email" id="signupEmail" name="email" placeholder="you@example.com" autocomplete="email" required />
+                <div class="form-error"><i data-lucide="alert-circle"></i><span>Enter a valid email address.</span></div>
+              </div>
+
+              <div class="form-group" id="signupPasswordGroup">
+                <label class="form-label" for="signupPassword">Password</label>
+                <div class="auth-field">
+                  <input class="form-input" type="password" id="signupPassword" name="password" placeholder="At least 8 characters" autocomplete="new-password" required />
+                  <button type="button" class="field-toggle-btn" data-toggle-password aria-label="Show password">
+                    <i data-lucide="eye"></i>
+                  </button>
+                </div>
+                <div class="form-error"><i data-lucide="alert-circle"></i><span>Password must be at least 8 characters.</span></div>
+              </div>
+
+              <div class="form-group" id="signupConfirmGroup">
+                <label class="form-label" for="signupConfirm">Confirm password</label>
+                <div class="auth-field">
+                  <input class="form-input" type="password" id="signupConfirm" name="confirmPassword" placeholder="Re-enter your password" autocomplete="new-password" required />
+                  <button type="button" class="field-toggle-btn" data-toggle-password aria-label="Show password">
+                    <i data-lucide="eye"></i>
+                  </button>
+                </div>
+                <div class="form-error"><i data-lucide="alert-circle"></i><span>Passwords don't match.</span></div>
+              </div>
+
+              <div class="auth-check-row">
+                <input type="checkbox" id="signupTerms" name="terms" required />
+                <label for="signupTerms">I agree to Marka's <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a></label>
+              </div>
+
+              <button type="submit" class="auth-submit" id="signupSubmitBtn">
+                <span class="spinner"></span>
+                <i data-lucide="user-plus" class="submit-icon"></i>
+                <span class="submit-label">Create account</span>
+              </button>
+
+              <div class="auth-toast" id="signupToast" hidden>
+                <i data-lucide="check-circle"></i>
+                <span>Account created — let's verify your email…</span>
+              </div>
+            </form>
+
+            <div class="auth-divider">or continue with</div>
+            <div class="auth-social-row">
+              <button type="button" class="btn-secondary"><i data-lucide="chrome"></i> Google</button>
+              <button type="button" class="btn-secondary"><i data-lucide="apple"></i> Apple</button>
+            </div>
+          </div>
+
+          <p class="auth-foot">Already have an account? <a href="login.html">Log in</a></p>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/common.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/signup.js"></script>
+  </body>
+</html>
