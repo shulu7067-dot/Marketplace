@@ -7,12 +7,13 @@
    ============================================================================ */
 
 const NAV_LINKS = ["Home", "Categories", "Blog", "Contact"];
+const NAV_LINK_HREFS = { Home: "index.html", Categories: "categories.html" };
 
 const BOTTOM_NAV = [
   { id: "home", label: "Home", icon: "home", href: "index.html" },
   { id: "favorites", label: "Favorites", icon: "heart" },
   { id: "sell", label: "Sell", icon: "plus", isSell: true, href: "sell.html" },
-  { id: "search", label: "Search", icon: "search" },
+  { id: "search", label: "Search", icon: "search", href: "browse.html" },
   { id: "profile", label: "Profile", icon: "user", href: "profile.html" },
 ];
 
@@ -43,9 +44,13 @@ function refreshIcons() {
 function renderNavLinks(activeLabel = "Home") {
   const nav = document.getElementById("navLinks");
   if (!nav) return;
-  nav.innerHTML = NAV_LINKS.map(
-    (label) => `<span class="${label === activeLabel ? "active" : ""}">${label}</span>`
-  ).join("");
+  nav.innerHTML = NAV_LINKS.map((label) => {
+    const cls = label === activeLabel ? "active" : "";
+    const href = NAV_LINK_HREFS[label];
+    return href
+      ? `<a class="${cls}" href="${href}">${label}</a>`
+      : `<span class="${cls}">${label}</span>`;
+  }).join("");
 }
 
 /* -------------------------------- Bottom nav ----------------------------------- */

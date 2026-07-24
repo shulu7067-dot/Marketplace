@@ -38,17 +38,23 @@ const state = {
 };
 
 /* --------------------------------- Renderers ---------------------------------- */
+// Slugs line up with js/categories-data.js's CATEGORY_DETAILS so a click here
+// lands on the matching category.html?slug=… page; the "All categories" tile
+// has no slug of its own and goes to categories.html instead.
+const CATEGORY_SLUGS = { Vehicles: "vehicles", Bikes: "bikes", Property: "property", Electronics: "electronics", Phones: "phones" };
+
 function renderCategories() {
   const grid = document.getElementById("categoriesGrid");
-  grid.innerHTML = CATEGORIES.map(
-    (c) => `
-    <div class="category-card">
+  grid.innerHTML = CATEGORIES.map((c) => {
+    const href = CATEGORY_SLUGS[c.label] ? `category.html?slug=${CATEGORY_SLUGS[c.label]}` : "categories.html";
+    return `
+    <a class="category-card" href="${href}">
       <div class="category-icon" style="background:${c.bg}">
         <i data-lucide="${c.icon}" style="color:${c.color}"></i>
       </div>
       <span class="category-label">${c.label}</span>
-    </div>`
-  ).join("");
+    </a>`;
+  }).join("");
 }
 
 function renderFeatured() {
@@ -172,10 +178,21 @@ function initCategoriesCarousel() {
   updateArrows();
 }
 
+function initHeroSearch() {
+  const input = document.getElementById("heroSearch");
+  if (!input) return;
+  input.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    const q = input.value.trim();
+    window.location.href = q ? `browse.html?q=${encodeURIComponent(q)}` : "browse.html";
+  });
+}
+
 /* ---------------------------------- Init --------------------------------------- */
 document.addEventListener("DOMContentLoaded", () => {
   renderAll();
   initCategoriesCarousel();
+  initHeroSearch();
 });
 
 // In case lucide loads after DOMContentLoaded (it's deferred), re-run icon creation.

@@ -183,6 +183,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (card) {
       window.location.href = `listing.html?id=${card.dataset.listingId}`;
     }
+
+    const settingsItem = e.target.closest(".settings-item--danger");
+    if (settingsItem) {
+      window.location.href = "login.html";
+    }
   });
 
   document.addEventListener("keydown", (e) => {

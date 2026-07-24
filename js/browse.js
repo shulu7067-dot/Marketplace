@@ -14,8 +14,15 @@ function getRequestedCategory() {
   return BROWSE_CATEGORY_OPTIONS.includes(category) ? category : "All categories";
 }
 
+// e.g. index.html's hero search -> browse.html?q=trek+marlin pre-fills the
+// search box and results the same way typing it in directly would.
+function getRequestedQuery() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("q") || "";
+}
+
 const state = {
-  query: "",
+  query: getRequestedQuery(),
   category: getRequestedCategory(), // e.g. browse.html?category=Electronics -> "Home > Electronics"
   minPrice: null,
   maxPrice: null,
@@ -253,6 +260,7 @@ document.addEventListener("DOMContentLoaded", () => {
   renderRecentlyViewed();
 
   const searchInput = document.getElementById("browseSearch");
+  searchInput.value = state.query;
   let searchDebounce;
   searchInput.addEventListener("input", (e) => {
     clearTimeout(searchDebounce);
