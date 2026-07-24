@@ -11,7 +11,7 @@ const NAV_LINKS = ["Home", "Categories", "Blog", "Contact"];
 const BOTTOM_NAV = [
   { id: "home", label: "Home", icon: "home", href: "index.html" },
   { id: "favorites", label: "Favorites", icon: "heart" },
-  { id: "sell", label: "Sell", icon: "plus", isSell: true },
+  { id: "sell", label: "Sell", icon: "plus", isSell: true, href: "sell.html" },
   { id: "search", label: "Search", icon: "search" },
   { id: "profile", label: "Profile", icon: "user" },
 ];
@@ -57,9 +57,9 @@ function renderBottomNav(activeTab) {
   inner.innerHTML = BOTTOM_NAV.map((n) => {
     const active = activeTab === n.id;
     if (n.isSell) {
-      return `<button class="nav-item nav-item--sell" data-tab="${n.id}" aria-label="${n.label}">
+      return `<a class="nav-item nav-item--sell" data-tab="${n.id}" href="${n.href}" aria-label="${n.label}">
         <i data-lucide="${n.icon}"></i>
-      </button>`;
+      </a>`;
     }
     const tag = n.href ? "a" : "button";
     const hrefAttr = n.href ? `href="${n.href}"` : "";
