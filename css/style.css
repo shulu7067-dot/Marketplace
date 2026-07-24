@@ -455,6 +455,7 @@ i[data-lucide] {
   border: 1px solid var(--border);
   border-radius: 16px;
   overflow: hidden;
+  cursor: pointer;
 }
 @media (min-width: 1024px) { .featured-card { min-width: 0; width: 100%; flex-shrink: 1; } }
 
@@ -588,6 +589,7 @@ i[data-lucide] {
   border: 1px solid var(--border);
   border-radius: 16px;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .listing-media {
