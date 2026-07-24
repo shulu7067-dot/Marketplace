@@ -29,55 +29,15 @@ const LISTINGS = [
   { id: 6, title: "iPhone 14 Pro, unlocked", price: "$690", loc: "New York, US", time: "1d", grad: ["#B0472D", "#8A5A12"] },
 ];
 
-const NAV_LINKS = ["Home", "Categories", "Blog", "Contact"];
-
-const BOTTOM_NAV = [
-  { id: "home", label: "Home", icon: "home" },
-  { id: "favorites", label: "Favorites", icon: "heart" },
-  { id: "sell", label: "Sell", icon: "plus", isSell: true },
-  { id: "search", label: "Search", icon: "search" },
-  { id: "profile", label: "Profile", icon: "user" },
-];
-
 /* --------------------------------- State ------------------------------------ */
+// NAV_LINKS, BOTTOM_NAV, priceStub(), favButtonHTML() and refreshIcons() come
+// from js/common.js, loaded before this file.
 const state = {
   favs: {},
   tab: "home",
 };
 
-/* -------------------------------- Helpers ------------------------------------ */
-function el(html) {
-  const t = document.createElement("template");
-  t.innerHTML = html.trim();
-  return t.content.firstElementChild;
-}
-
-function priceStub(price) {
-  return `
-    <div class="price-stub">
-      <div class="price-stub-inner">
-        <span class="price-text">${price}</span>
-        <span class="price-stub-dot"></span>
-      </div>
-    </div>`;
-}
-
-function favButton(id) {
-  const active = !!state.favs[id];
-  return `
-    <button class="fav-btn ${active ? "active" : ""}" data-fav-id="${id}" aria-label="Toggle favorite">
-      <i data-lucide="heart"></i>
-    </button>`;
-}
-
 /* --------------------------------- Renderers ---------------------------------- */
-function renderNavLinks() {
-  const nav = document.getElementById("navLinks");
-  nav.innerHTML = NAV_LINKS.map(
-    (label, i) => `<span class="${i === 0 ? "active" : ""}">${label}</span>`
-  ).join("");
-}
-
 function renderCategories() {
   const grid = document.getElementById("categoriesGrid");
   grid.innerHTML = CATEGORIES.map(
@@ -95,10 +55,10 @@ function renderFeatured() {
   const row = document.getElementById("featuredRow");
   row.innerHTML = FEATURED.map(
     (item) => `
-    <div class="featured-card">
+    <div class="featured-card" data-listing-id="${item.id}" role="link" tabindex="0" aria-label="View ${item.title}">
       <div class="featured-media" style="background:linear-gradient(135deg, ${item.grad[0]}, ${item.grad[1]})">
         ${item.boosted ? `<div class="boosted-badge"><i data-lucide="zap"></i> Boosted</div>` : ""}
-        ${favButton(item.id)}
+        ${favButtonHTML(item.id, !!state.favs[item.id])}
       </div>
       <div class="featured-body">
         <div class="featured-tag">${item.tag}</div>
@@ -113,9 +73,9 @@ function renderListings() {
   const grid = document.getElementById("listingsGrid");
   grid.innerHTML = LISTINGS.map(
     (item) => `
-    <div class="listing-card">
+    <div class="listing-card" data-listing-id="${item.id + 100}" role="link" tabindex="0" aria-label="View ${item.title}">
       <div class="listing-media" style="background:linear-gradient(135deg, ${item.grad[0]}, ${item.grad[1]})">
-        ${favButton(item.id + 100)}
+        ${favButtonHTML(item.id + 100, !!state.favs[item.id + 100])}
       </div>
       <div class="listing-body">
         <div class="card-title truncate">${item.title}</div>
@@ -129,36 +89,12 @@ function renderListings() {
   ).join("");
 }
 
-function renderBottomNav() {
-  const nav = document.getElementById("bottomNav");
-  const inner = document.createElement("div");
-  inner.className = "bottom-nav-inner";
-  inner.innerHTML = BOTTOM_NAV.map((n) => {
-    const active = state.tab === n.id;
-    if (n.isSell) {
-      return `<button class="nav-item nav-item--sell" data-tab="${n.id}" aria-label="${n.label}">
-        <i data-lucide="${n.icon}"></i>
-      </button>`;
-    }
-    return `<button class="nav-item ${active ? "active" : ""}" data-tab="${n.id}">
-      <i data-lucide="${n.icon}" ${active && n.id === "favorites" ? 'style="fill:currentColor"' : ""}></i>
-      <span>${n.label}</span>
-    </button>`;
-  }).join("");
-  nav.innerHTML = "";
-  nav.appendChild(inner);
-}
-
-function refreshIcons() {
-  if (window.lucide) window.lucide.createIcons();
-}
-
 function renderAll() {
-  renderNavLinks();
+  renderNavLinks("Home");
   renderCategories();
   renderFeatured();
   renderListings();
-  renderBottomNav();
+  renderBottomNav(state.tab);
   refreshIcons();
 }
 
@@ -172,8 +108,15 @@ function toggleFav(id) {
 
 function setTab(tabId) {
   state.tab = tabId;
-  renderBottomNav();
+  renderBottomNav(state.tab);
   refreshIcons();
+}
+
+// Cards use data-listing-id + this handler instead of an <a> wrapper, so the
+// favorite button inside a card can stop the click from also opening the
+// listing (checked first, and returns before the card-navigation check runs).
+function goToListing(id) {
+  window.location.href = `listing.html?id=${id}`;
 }
 
 document.addEventListener("click", (e) => {
@@ -186,6 +129,20 @@ document.addEventListener("click", (e) => {
   if (tabBtn) {
     setTab(tabBtn.dataset.tab);
     return;
+  }
+  const card = e.target.closest("[data-listing-id]");
+  if (card) {
+    goToListing(card.dataset.listingId);
+  }
+});
+
+// Keyboard support for cards (Enter / Space) since they're divs, not links.
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const card = e.target.closest("[data-listing-id]");
+  if (card) {
+    e.preventDefault();
+    goToListing(card.dataset.listingId);
   }
 });
 
