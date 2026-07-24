@@ -84,7 +84,7 @@ function PriceStub({ price }) {
   );
 }
 
-function FavButton({ active, onClick, dark }) {
+function FavButton({ active, onClick, dark = false }) {
   return (
     <button
       onClick={onClick}

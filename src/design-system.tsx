@@ -144,7 +144,7 @@ function SectionHeading({ eyebrow, title, desc, t }) {
   );
 }
 
-function Panel({ t, children, style, className = "" }) {
+function Panel({ t, children, style = {}, className = "" }) {
   return (
     <div
       className={"p-6 " + className}
@@ -164,7 +164,7 @@ function Kicker({ t, children }) {
 }
 
 /* ----------------------------------- Button ----------------------------------- */
-function Btn({ t, variant = "primary", size = "md", icon: Icon, iconRight, loading, disabled, children, full }) {
+function Btn({ t, variant = "primary", size = "md", icon: Icon = null, iconRight = false, loading = false, disabled = false, children, full = false }) {
   const sizes = { sm: { py: 8, px: 14, fs: 13 }, md: { py: 11, px: 18, fs: 14 }, lg: { py: 14, px: 22, fs: 15 } };
   const s = sizes[size];
   const base = {
@@ -197,7 +197,7 @@ function Btn({ t, variant = "primary", size = "md", icon: Icon, iconRight, loadi
   );
 }
 
-function IconBtn({ t, icon: Icon, active, size = 38, filled }) {
+function IconBtn({ t, icon: Icon, active = false, size = 38, filled = false }) {
   return (
     <button
       style={{
@@ -213,7 +213,7 @@ function IconBtn({ t, icon: Icon, active, size = 38, filled }) {
 }
 
 /* ----------------------------------- Badges ----------------------------------- */
-function Badge({ t, tone = "neutral", children, icon: Icon }) {
+function Badge({ t, tone = "neutral", children, icon: Icon = null }) {
   const tones = {
     neutral: { bg: t.surfaceAlt, fg: t.textSecondary, bd: t.border },
     accent: { bg: t.accentSoft, fg: t.accent, bd: "transparent" },
@@ -234,7 +234,7 @@ function Badge({ t, tone = "neutral", children, icon: Icon }) {
   );
 }
 
-function Tag({ t, children, onClose }) {
+function Tag({ t, children, onClose = false }) {
   return (
     <span
       className="inline-flex items-center gap-1.5 text-xs font-medium"
@@ -246,7 +246,7 @@ function Tag({ t, children, onClose }) {
   );
 }
 
-function Avatar({ t, initials, size = 40, ring }) {
+function Avatar({ t, initials, size = 40, ring = false }) {
   return (
     <div
       style={{
@@ -271,7 +271,7 @@ function Stars({ t, value = 4.5, size = 14 }) {
 }
 
 /* ------------------------------- Ticket stub price ------------------------------ */
-function PriceStub({ t, price, unit }) {
+function PriceStub({ t, price, unit = null }) {
   // Signature element: a die-cut ticket-stub tag for price, perforated edge.
   return (
     <div className="relative inline-flex items-stretch" style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.12))" }}>
