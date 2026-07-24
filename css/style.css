@@ -175,6 +175,7 @@ i[data-lucide] {
   font-size: 13px;
   font-weight: 700;
   font-family: var(--font-display);
+  text-decoration: none;
 }
 
 @media (min-width: 1024px) {
