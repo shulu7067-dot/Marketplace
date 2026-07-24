@@ -71,8 +71,17 @@
         <section class="section">
           <div class="section-head">
             <h2 class="section-title">Categories</h2>
+            <div class="show-all" id="categoriesShowAll">Show all <i data-lucide="chevron-right"></i></div>
           </div>
-          <div class="categories-grid" id="categoriesGrid"></div>
+          <div class="categories-carousel">
+            <button class="carousel-arrow carousel-arrow--left" id="catArrowLeft" aria-label="Scroll categories left">
+              <i data-lucide="chevron-left"></i>
+            </button>
+            <div class="categories-grid" id="categoriesGrid"></div>
+            <button class="carousel-arrow carousel-arrow--right" id="catArrowRight" aria-label="Scroll categories right">
+              <i data-lucide="chevron-right"></i>
+            </button>
+          </div>
         </section>
 
         <!-- Promo banner -->
