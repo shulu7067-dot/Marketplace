@@ -294,6 +294,7 @@ i[data-lucide] {
   font-weight: 600;
   color: var(--secondary);
   cursor: pointer;
+  text-decoration: none;
 }
 .show-all svg, .show-all i { width: 13px; height: 13px; }
 @media (min-width: 1024px) { .show-all { font-size: 14px; } }
