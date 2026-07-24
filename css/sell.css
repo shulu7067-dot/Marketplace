@@ -52,10 +52,15 @@
   border: 1px solid var(--border);
   background: var(--surface);
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-primary);
   outline: none;
   min-height: 44px;
+}
+@media (min-width: 1024px) {
+  .form-input,
+  .form-textarea,
+  .form-select { font-size: 14px; }
 }
 .form-input::placeholder,
 .form-textarea::placeholder { color: var(--text-tertiary); }
@@ -90,10 +95,11 @@
   outline: none;
   background: none;
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-primary);
   min-height: 44px;
 }
+@media (min-width: 1024px) { .form-price-field input { font-size: 14px; } }
 .form-price-field input::-webkit-outer-spin-button,
 .form-price-field input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .form-price-field input[type="number"] { -moz-appearance: textfield; }
