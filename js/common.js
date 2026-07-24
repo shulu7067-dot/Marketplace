@@ -13,7 +13,7 @@ const BOTTOM_NAV = [
   { id: "favorites", label: "Favorites", icon: "heart" },
   { id: "sell", label: "Sell", icon: "plus", isSell: true, href: "sell.html" },
   { id: "search", label: "Search", icon: "search" },
-  { id: "profile", label: "Profile", icon: "user" },
+  { id: "profile", label: "Profile", icon: "user", href: "profile.html" },
 ];
 
 /* ------------------------------ Render helpers ------------------------------- */
