@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Browse — Marka</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/listing.css" />
+    <link rel="stylesheet" href="css/browse.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="shell">
+
+        <!-- Mobile / tablet top bar -->
+        <header class="topbar topbar--mobile">
+          <button class="icon-btn" id="menuBtn" aria-label="Menu">
+            <i data-lucide="menu"></i>
+          </button>
+          <div class="brand">
+            <span class="brand-mark">M</span>
+            <span class="brand-name">Marka</span>
+          </div>
+          <button class="icon-btn icon-btn--dot" aria-label="Notifications">
+            <i data-lucide="bell"></i>
+          </button>
+        </header>
+
+        <!-- Desktop / laptop top nav -->
+        <header class="topbar topbar--desktop">
+          <div class="brand">
+            <span class="brand-mark brand-mark--lg">M</span>
+            <span class="brand-name brand-name--lg">Marka</span>
+          </div>
+          <nav class="nav-links" id="navLinks"></nav>
+          <div class="topbar-actions">
+            <button class="icon-btn icon-btn--dot" aria-label="Notifications">
+              <i data-lucide="bell"></i>
+            </button>
+            <button class="post-ad-btn">
+              <i data-lucide="plus" class="accent-icon"></i> Post ad
+            </button>
+            <div class="avatar">JD</div>
+          </div>
+        </header>
+
+        <!-- Breadcrumb -->
+        <nav class="breadcrumb" id="breadcrumb" aria-label="Breadcrumb"></nav>
+
+        <!-- Search + filters -->
+        <section class="browse-search">
+          <div class="search-row">
+            <div class="search-field">
+              <i data-lucide="search" class="search-icon"></i>
+              <input type="text" id="browseSearch" placeholder="Search bikes, homes, phones…" aria-label="Search listings" />
+            </div>
+            <button class="filter-btn" id="filterToggleBtn" aria-label="Toggle filters">
+              <i data-lucide="sliders-horizontal"></i>
+            </button>
+          </div>
+
+          <!-- Filter bar -->
+          <div class="filter-bar" id="filterBar">
+            <label class="sr-only" for="filterCategory">Category</label>
+            <select class="filter-select" id="filterCategory" aria-label="Category"></select>
+
+            <div class="price-range-field" role="group" aria-label="Price range">
+              <span>$</span>
+              <input type="number" id="filterPriceMin" min="0" placeholder="Min" inputmode="numeric" aria-label="Minimum price" />
+              <span aria-hidden="true">–</span>
+              <span>$</span>
+              <input type="number" id="filterPriceMax" min="0" placeholder="Max" inputmode="numeric" aria-label="Maximum price" />
+            </div>
+
+            <label class="sr-only" for="filterCondition">Condition</label>
+            <select class="filter-select" id="filterCondition" aria-label="Condition"></select>
+
+            <label class="sr-only" for="filterLocation">Location</label>
+            <select class="filter-select" id="filterLocation" aria-label="Location"></select>
+
+            <button class="post-ad-btn filter-apply-btn" id="filterApplyBtn">
+              <i data-lucide="sliders-horizontal"></i> Filter
+            </button>
+          </div>
+
+          <!-- Active filter chips -->
+          <div class="filter-chips" id="filterChips" role="list" aria-label="Active filters" hidden></div>
+        </section>
+
+        <!-- Results -->
+        <section class="section section--latest" id="resultsSection">
+          <div class="results-header">
+            <div class="results-count" id="resultsCount" aria-live="polite"></div>
+            <div class="results-sort-label">
+              <span>Sort by</span>
+              <label class="sr-only" for="resultsSort">Sort results</label>
+              <select class="filter-select" id="resultsSort" aria-label="Sort results"></select>
+            </div>
+          </div>
+
+          <div class="listings-grid" id="browseGrid"></div>
+
+          <div class="empty-state" id="emptyState" hidden>
+            <div class="empty-illustration"><i data-lucide="search-x"></i></div>
+            <h3 class="empty-title">No listings found</h3>
+            <p class="empty-text">We couldn't find anything matching your filters. Try broadening your search or clearing them.</p>
+            <button class="btn-primary" id="emptyClearBtn">
+              <i data-lucide="rotate-ccw"></i> Clear filters
+            </button>
+          </div>
+
+          <nav class="pagination" id="pagination" aria-label="Pagination"></nav>
+        </section>
+
+        <!-- Recently viewed -->
+        <section class="section section--latest">
+          <div class="section-head">
+            <h2 class="section-title">Recently viewed</h2>
+            <div class="show-all">Show all <i data-lucide="chevron-right"></i></div>
+          </div>
+          <div class="featured-row" id="recentRow"></div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="site-footer">
+          <div class="footer-top">
+            <div>
+              <div class="brand">
+                <span class="brand-mark brand-mark--lg">M</span>
+                <span class="brand-name brand-name--lg">Marka</span>
+              </div>
+              <p class="footer-brand-copy">A calmer way to buy and sell locally — homes, vehicles, bikes and more, from people near you.</p>
+            </div>
+            <div class="footer-links">
+              <div>
+                <div class="footer-col-title">Marketplace</div>
+                <ul>
+                  <li><a href="browse.html">Browse listings</a></li>
+                  <li><a href="index.html">Categories</a></li>
+                  <li><a href="#">Post an ad</a></li>
+                </ul>
+              </div>
+              <div>
+                <div class="footer-col-title">Company</div>
+                <ul>
+                  <li><a href="#">About</a></li>
+                  <li><a href="#">Blog</a></li>
+                  <li><a href="#">Contact</a></li>
+                </ul>
+              </div>
+              <div>
+                <div class="footer-col-title">Support</div>
+                <ul>
+                  <li><a href="#">Safety tips</a></li>
+                  <li><a href="#">Help center</a></li>
+                  <li><a href="#">Terms &amp; privacy</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div class="footer-bottom">
+            <span>© 2026 Marka. All rights reserved.</span>
+            <span>Made for people trading closer to home.</span>
+          </div>
+        </footer>
+
+        <!-- Bottom nav — mobile & tablet only; laptop/desktop use the top nav above -->
+        <nav class="bottom-nav" id="bottomNav"></nav>
+      </div>
+    </div>
+
+    <script src="js/common.js"></script>
+    <script src="js/listing-data.js"></script>
+    <script src="js/browse-data.js"></script>
+    <script src="js/browse.js"></script>
+  </body>
+</html>
