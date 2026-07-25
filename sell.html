@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/listing.css" />
     <link rel="stylesheet" href="css/sell.css" />
+    <link rel="stylesheet" href="css/modal.css" />
   </head>
   <body>
     <div class="page">
@@ -64,8 +65,8 @@
 
         <main class="sell-main">
           <div class="sell-heading">
-            <h1 class="sell-title">Post an ad</h1>
-            <p class="sell-subtitle">Add a few details and photos — it takes less than five minutes.</p>
+            <h1 class="sell-title" id="sellTitle">Post an ad</h1>
+            <p class="sell-subtitle" id="sellSubtitle">Add a few details and photos — it takes less than five minutes.</p>
           </div>
 
           <form id="sellForm">
@@ -128,14 +129,22 @@
               </div>
             </section>
 
+            <button type="button" class="btn-share" id="previewBtn">
+              <i data-lucide="eye"></i> Preview before publishing
+            </button>
+
             <div class="sell-actions">
               <button type="button" class="btn-secondary" id="saveDraftBtn">
                 <i data-lucide="save"></i> Save draft
               </button>
-              <button type="submit" class="btn-primary">
+              <button type="submit" class="btn-primary" id="publishBtn">
                 <i data-lucide="upload"></i> Post ad
               </button>
             </div>
+
+            <button type="button" class="btn-share btn-report" id="deleteDraftBtn" hidden>
+              <i data-lucide="trash-2"></i> Delete this ad
+            </button>
 
             <div class="sell-toast" id="sellToast" hidden>
               <i data-lucide="check-circle"></i>
@@ -149,8 +158,29 @@
       </div>
     </div>
 
+    <!-- Preview before publishing -->
+    <div class="modal-overlay" id="previewModal" aria-hidden="true">
+      <div class="modal modal--wide" role="dialog" aria-modal="true" aria-labelledby="previewModalTitle">
+        <div class="modal-head">
+          <h2 class="modal-title" id="previewModalTitle">Preview listing</h2>
+          <button type="button" class="modal-close" id="previewModalClose" aria-label="Close">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body" id="previewBody"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="previewBackBtn">Back to edit</button>
+          <button type="button" class="btn-primary" id="previewPublishBtn">
+            <i data-lucide="upload"></i> Post ad
+          </button>
+        </div>
+      </div>
+    </div>
+
     <script src="js/common.js"></script>
+    <script src="js/listing-data.js"></script>
     <script src="js/browse-data.js"></script>
+    <script src="js/listings-store.js"></script>
     <script src="js/sell.js"></script>
   </body>
 </html>

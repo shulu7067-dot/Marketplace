@@ -17,6 +17,7 @@
 
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/listing.css" />
+    <link rel="stylesheet" href="css/modal.css" />
   </head>
   <body>
     <div class="page">
@@ -77,17 +78,7 @@
         <!-- Seller card + actions -->
         <section class="section">
           <div class="seller-card" id="sellerCard"></div>
-          <div class="action-buttons">
-            <a class="btn-primary" id="messageSellerBtn" href="#">
-              <i data-lucide="message-circle"></i> Message Seller
-            </a>
-            <a class="btn-secondary" id="callSellerBtn" href="#">
-              <i data-lucide="phone"></i> Call Seller
-            </a>
-          </div>
-          <button class="btn-share" id="shareListingBtn">
-            <i data-lucide="share-2"></i> Share Listing
-          </button>
+          <div id="listingActionsWrap"></div>
         </section>
 
         <!-- Description -->
@@ -128,8 +119,33 @@
       </div>
     </div>
 
+    <!-- Report listing modal -->
+    <div class="modal-overlay" id="reportModal" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="reportModalTitle">
+        <div class="modal-head">
+          <h2 class="modal-title" id="reportModalTitle">Report listing</h2>
+          <button type="button" class="modal-close" id="reportModalClose" aria-label="Close">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-note">Let us know what's wrong with this listing — reports are reviewed by our team.</p>
+          <div class="radio-list" id="reportReasonList"></div>
+          <label class="field-label" for="reportDetails">Additional details (optional)</label>
+          <textarea class="field-textarea" id="reportDetails" placeholder="Add any extra context…"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="reportCancelBtn">Cancel</button>
+          <button type="button" class="btn-primary" id="reportSubmitBtn">
+            <i data-lucide="flag"></i> Submit report
+          </button>
+        </div>
+      </div>
+    </div>
+
     <script src="js/common.js"></script>
     <script src="js/listing-data.js"></script>
+    <script src="js/listings-store.js"></script>
     <script src="js/listing.js"></script>
   </body>
 </html>

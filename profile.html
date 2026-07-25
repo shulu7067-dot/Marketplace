@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/listing.css" />
     <link rel="stylesheet" href="css/profile.css" />
+    <link rel="stylesheet" href="css/modal.css" />
   </head>
   <body>
     <div class="page">
@@ -91,22 +92,48 @@
         <!-- Tabs -->
         <section class="section">
           <div class="profile-tabs" id="profileTabs" role="tablist">
-            <button class="profile-tab active" data-tab-panel="listings" role="tab" aria-selected="true">Listings</button>
-            <button class="profile-tab" data-tab-panel="favorites" role="tab" aria-selected="false">Favorites</button>
+            <button class="profile-tab active" data-tab-panel="listings" role="tab" aria-selected="true">My Listings</button>
+            <button class="profile-tab" data-tab-panel="favorites" role="tab" aria-selected="false">Saved</button>
             <button class="profile-tab" data-tab-panel="reviews" role="tab" aria-selected="false">Reviews</button>
           </div>
 
           <!-- Listings panel -->
           <div class="tab-panel" id="panel-listings">
+            <div class="sub-tabs" id="listingSubTabs" role="tablist" aria-label="Listing status">
+              <button class="sub-tab active" data-listing-status="published" role="tab" aria-selected="true">Active</button>
+              <button class="sub-tab" data-listing-status="pending" role="tab" aria-selected="false">Pending</button>
+              <button class="sub-tab" data-listing-status="sold" role="tab" aria-selected="false">Sold</button>
+              <button class="sub-tab" data-listing-status="expired" role="tab" aria-selected="false">Expired</button>
+              <button class="sub-tab" data-listing-status="draft" role="tab" aria-selected="false">Drafts</button>
+            </div>
             <div class="listings-grid" id="myListingsGrid"></div>
+            <div class="empty-state" id="myListingsEmpty" hidden>
+              <i data-lucide="package"></i>
+              <p id="myListingsEmptyText"></p>
+            </div>
           </div>
 
-          <!-- Favorites panel -->
+          <!-- Saved panel: favorited items + saved searches -->
           <div class="tab-panel" id="panel-favorites" hidden>
-            <div class="listings-grid" id="myFavoritesGrid"></div>
-            <div class="empty-state" id="favoritesEmpty" hidden>
-              <i data-lucide="heart"></i>
-              <p>Items you favorite will show up here.</p>
+            <div class="sub-tabs" id="savedSubTabs" role="tablist" aria-label="Saved">
+              <button class="sub-tab active" data-saved-view="items" role="tab" aria-selected="true">Saved items</button>
+              <button class="sub-tab" data-saved-view="searches" role="tab" aria-selected="false">Saved searches</button>
+            </div>
+
+            <div id="savedItemsView">
+              <div class="listings-grid" id="myFavoritesGrid"></div>
+              <div class="empty-state" id="favoritesEmpty" hidden>
+                <i data-lucide="heart"></i>
+                <p>Items you favorite will show up here.</p>
+              </div>
+            </div>
+
+            <div id="savedSearchesView" hidden>
+              <div class="saved-searches-list" id="savedSearchesList"></div>
+              <div class="empty-state" id="savedSearchesEmpty" hidden>
+                <i data-lucide="bookmark"></i>
+                <p>Save a search from the Browse page's filter bar to find it here.</p>
+              </div>
             </div>
           </div>
 
@@ -131,6 +158,8 @@
 
     <script src="js/common.js"></script>
     <script src="js/listing-data.js"></script>
+    <script src="js/listings-store.js"></script>
+    <script src="js/saved-searches-store.js"></script>
     <script src="js/profile-data.js"></script>
     <script src="js/profile.js"></script>
   </body>
