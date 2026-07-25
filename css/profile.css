@@ -100,6 +100,21 @@
   max-width: 640px;
 }
 
+/* verified-tag base rules live in css/listing.css; these turn it into a
+   clickable control on the profile page and add the "not verified yet" state */
+button.verified-tag {
+  background: var(--accent-soft);
+  border: none;
+  border-radius: 999px;
+  padding: 4px 10px 4px 8px;
+  cursor: pointer;
+}
+button.verified-tag:hover { filter: brightness(0.97); }
+.verified-tag--pending {
+  background: var(--surface-alt);
+  color: var(--text-tertiary);
+}
+
 /* ---------------------------------- Stats ------------------------------------- */
 .stats-grid {
   display: grid;
@@ -198,6 +213,75 @@
 .empty-state svg, .empty-state i { width: 26px; height: 26px; }
 .empty-state p { margin: 0; font-size: 13px; }
 
+/* ----------------------------- Rating summary ------------------------------------ */
+.rating-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  margin-bottom: 16px;
+}
+.rating-summary-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 110px;
+  padding-right: 16px;
+  border-right: 1px solid var(--border);
+}
+.rating-summary-value {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 32px;
+  color: var(--text-primary);
+}
+.review-stars--lg svg, .review-stars--lg i { width: 15px; height: 15px; }
+.rating-summary-count { font-size: 12px; color: var(--text-tertiary); }
+
+.rating-summary-bars {
+  flex: 1;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+.rating-bar-row { display: flex; align-items: center; gap: 8px; }
+.rating-bar-label {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  width: 22px;
+}
+.rating-bar-label svg, .rating-bar-label i { width: 11px; height: 11px; color: var(--accent); }
+.rating-bar-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  overflow: hidden;
+}
+.rating-bar-fill { height: 100%; background: var(--accent); border-radius: 999px; }
+.rating-bar-count { width: 18px; text-align: right; font-size: 12px; color: var(--text-tertiary); }
+
+.reviews-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.reviews-count { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); flex-shrink: 0; }
+.sub-tabs--sort { margin-bottom: 0; justify-content: flex-end; }
+
 /* -------------------------------- Reviews --------------------------------------- */
 .reviews-list {
   display: flex;
@@ -236,6 +320,28 @@
   font-size: 13.5px;
   line-height: 1.6;
   color: var(--text-secondary);
+}
+
+.review-helpful {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 30px;
+}
+.review-helpful svg, .review-helpful i { width: 13px; height: 13px; }
+.review-helpful:hover { background: var(--surface-alt); }
+.review-helpful--active {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+  color: var(--accent);
 }
 
 /* --------------------------- Owned-listing card overlay -------------------------- */
@@ -362,6 +468,7 @@
 .settings-item-hint { font-size: 12px; color: var(--text-tertiary); margin-top: 1px; }
 
 .settings-item-chevron { width: 15px; height: 15px; color: var(--text-tertiary); }
+.settings-item-badge { width: 16px; height: 16px; color: var(--secondary); flex-shrink: 0; }
 
 .settings-item--danger .settings-item-label { color: #C13F3F; }
 .settings-item--danger .settings-item-icon { color: #C13F3F; }
