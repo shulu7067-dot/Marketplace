@@ -46,7 +46,7 @@ const state = {
   location: getRequestedOption("location", BROWSE_LOCATION_OPTIONS, "All locations"),
   sortBy: "newest",
   page: 1,
-  favs: {},
+  favs: Object.fromEntries(getFavoriteIds().map((id) => [id, true])),
 };
 
 /* --------------------------------- Helpers ------------------------------------ */
@@ -271,7 +271,7 @@ function renderAll() {
 
 /* --------------------------------- Events ------------------------------------- */
 function toggleFav(id) {
-  state.favs[id] = !state.favs[id];
+  state.favs[id] = toggleFavorite(id);
   const filtered = getSortedListings(getFilteredListings());
   const pageItems = filtered.slice((state.page - 1) * PER_PAGE, state.page * PER_PAGE);
   renderGrid(pageItems);

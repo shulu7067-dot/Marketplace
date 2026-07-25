@@ -11,7 +11,7 @@ const NAV_LINK_HREFS = { Home: "index.html", Categories: "categories.html" };
 
 const BOTTOM_NAV = [
   { id: "home", label: "Home", icon: "home", href: "index.html" },
-  { id: "favorites", label: "Favorites", icon: "heart" },
+  { id: "favorites", label: "Favorites", icon: "heart", href: "favorites.html" },
   { id: "sell", label: "Sell", icon: "plus", isSell: true, href: "sell.html" },
   { id: "messages", label: "Chat", icon: "message-circle", href: "messages.html" },
   { id: "search", label: "Search", icon: "search", href: "browse.html" },
@@ -117,9 +117,12 @@ function renderBottomNav(activeTab) {
     }
     const tag = n.href ? "a" : "button";
     const hrefAttr = n.href ? `href="${n.href}"` : "";
+    const favCount = n.id === "favorites" && typeof getFavoriteCount === "function" ? getFavoriteCount() : 0;
     const badge =
       n.id === "messages" && typeof getTotalUnreadCount === "function" && getTotalUnreadCount() > 0
         ? `<span class="nav-badge" style="position:absolute;top:0;right:6px;">${getTotalUnreadCount()}</span>`
+        : favCount > 0
+        ? `<span class="nav-badge" style="position:absolute;top:0;right:6px;">${favCount}</span>`
         : "";
     return `<${tag} class="nav-item ${active ? "active" : ""}" data-tab="${n.id}" ${hrefAttr} style="position:relative;">
       <i data-lucide="${n.icon}" ${active && n.id === "favorites" ? 'style="fill:currentColor"' : ""}></i>

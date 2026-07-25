@@ -10,7 +10,7 @@
    ============================================================================ */
 
 const state = {
-  favs: Object.fromEntries(MY_FAVORITE_IDS.map((id) => [id, true])),
+  favs: Object.fromEntries(getFavoriteIds().map((id) => [id, true])),
   activeTab: "listings",
   listingStatus: "published", // "published" (shown as Active) | "pending" | "sold" | "expired" | "draft"
   savedView: "items", // "items" | "searches"
@@ -138,22 +138,60 @@ function listingCardHTML(item, statusOverride) {
 
 // A listing saved from the Sell page (draft, published/active, pending,
 // sold, or expired) — same card shape, plus a status pill and edit/delete
-// controls instead of a favorite button.
+// controls instead of a favorite button. Active (published) ads also get a
+// Promote button (promote.html) and, once boosted, a Boosted badge — see
+// js/promotions-store.js.
 function ownedListingCardHTML(item) {
   const isDraft = item.status === "draft";
   const meta = LISTING_STATUS_META[item.status] || LISTING_STATUS_META.published;
+  const canPromote = item.status === "published";
+  const promoted = canPromote && typeof isPromoted === "function" && isPromoted(item.id);
   return `
     <div class="listing-card" data-listing-id="${item.id}" data-status="${item.status}" role="link" tabindex="0" aria-label="${isDraft ? "Continue editing" : "View"} ${item.title}">
       <div class="listing-media" style="${cardMediaStyle(item)}">
         <span class="status-pill status-pill--${item.status}">${meta.label}</span>
+        ${promoted ? `<div class="boosted-badge boosted-badge--corner"><i data-lucide="zap"></i> Boosted</div>` : ""}
         <div class="card-owner-actions">
           <button type="button" class="card-owner-btn" data-edit-id="${item.id}" aria-label="Edit listing" title="Edit">
             <i data-lucide="pencil"></i>
           </button>
+          ${canPromote ? `<a class="card-owner-btn card-owner-btn--promote" href="promote.html?id=${item.id}" aria-label="${promoted ? "Manage boost" : "Promote listing"}" title="${promoted ? "Manage boost" : "Promote"}"><i data-lucide="rocket"></i></a>` : ""}
           <button type="button" class="card-owner-btn card-owner-btn--danger" data-delete-id="${item.id}" aria-label="Delete listing" title="Delete">
             <i data-lucide="trash-2"></i>
           </button>
         </div>
+      </div>
+      <div class="listing-body">
+        <div class="card-title truncate">${item.title}</div>
+        <div class="card-loc"><i data-lucide="map-pin"></i><span>${item.loc}</span></div>
+        <div class="card-footer">
+          ${priceStub(item.price)}
+          <span class="card-time">${item.condition}</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+// Same idea as listingCardHTML, but for the user's *own* seeded demo
+// listings (MY_LISTING_IDS) — status pill like ownedListingCardHTML, plus a
+// Promote button/Boosted badge for active ones, but no edit/delete since
+// these aren't backed by a real js/listings-store.js record.
+function demoOwnedListingCardHTML(item, status) {
+  const meta = LISTING_STATUS_META[status] || LISTING_STATUS_META.published;
+  const canPromote = status === "published";
+  const promoted = canPromote && typeof isPromoted === "function" && isPromoted(item.id);
+  return `
+    <div class="listing-card" data-listing-id="${item.id}" data-status="${status}" role="link" tabindex="0" aria-label="View ${item.title}">
+      <div class="listing-media" style="background:linear-gradient(135deg, ${item.grad[0]}, ${item.grad[1]})">
+        <span class="status-pill status-pill--${status}">${meta.label}</span>
+        ${promoted ? `<div class="boosted-badge boosted-badge--corner"><i data-lucide="zap"></i> Boosted</div>` : ""}
+        ${
+          canPromote
+            ? `<div class="card-owner-actions">
+          <a class="card-owner-btn card-owner-btn--promote" href="promote.html?id=${item.id}" aria-label="${promoted ? "Manage boost" : "Promote listing"}" title="${promoted ? "Manage boost" : "Promote"}"><i data-lucide="rocket"></i></a>
+        </div>`
+            : ""
+        }
       </div>
       <div class="listing-body">
         <div class="card-title truncate">${item.title}</div>
@@ -178,7 +216,7 @@ function renderMyListings() {
   const demo = MY_LISTING_IDS.filter((m) => m.status === status).map((m) => LISTING_DETAILS[m.id]);
 
   const ownedHTML = owned.map(ownedListingCardHTML).join("");
-  const demoHTML = demo.map((item) => listingCardHTML(item, status)).join("");
+  const demoHTML = demo.map((item) => demoOwnedListingCardHTML(item, status)).join("");
   grid.innerHTML = ownedHTML + demoHTML;
 
   const empty = document.getElementById("myListingsEmpty");
@@ -388,7 +426,7 @@ function renderAll() {
 
 /* --------------------------------- Events ------------------------------------- */
 function toggleFav(id) {
-  state.favs[id] = !state.favs[id];
+  state.favs[id] = toggleFavorite(id);
   renderMyListings();
   renderFavorites();
   refreshIcons();
@@ -673,6 +711,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.addEventListener(BLOCKED_USERS_UPDATED_EVENT, () => {
     renderSettings();
+    refreshIcons();
+  });
+
+  window.addEventListener(PROMOTIONS_UPDATED_EVENT, () => {
+    renderMyListings();
     refreshIcons();
   });
 

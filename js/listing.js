@@ -8,7 +8,7 @@
 
 const state = {
   activeImage: 0,
-  favs: {}, // local favorite state for this page (fav button on the gallery + similar-listings cards)
+  favs: Object.fromEntries(getFavoriteIds().map((id) => [id, true])), // mirrors the shared favorites store (fav button on the gallery + similar-listings cards)
 };
 
 const REPORT_REASONS = [
@@ -66,7 +66,10 @@ function renderGallery(record) {
   const thumbs = document.getElementById("galleryThumbs");
 
   main.setAttribute("style", mediaStyle(record.images[state.activeImage]));
-  main.innerHTML = favButtonHTML(record.id, !!state.favs[record.id]);
+  const promoted = typeof isPromoted === "function" && isPromoted(record.id);
+  main.innerHTML =
+    (promoted ? `<div class="boosted-badge"><i data-lucide="zap"></i> Boosted</div>` : "") +
+    favButtonHTML(record.id, !!state.favs[record.id]);
 
   thumbs.innerHTML = record.images
     .map((img, i) => `
@@ -119,7 +122,14 @@ function renderActionArea(record) {
         <button class="btn-secondary" id="deleteListingBtn" type="button">
           <i data-lucide="trash-2"></i> Delete listing
         </button>
-      </div>`;
+      </div>
+      ${
+        record.status !== "draft"
+          ? `<a class="btn-share" href="promote.html?id=${record.id}" style="margin-top:8px;">
+        <i data-lucide="rocket"></i> ${typeof isPromoted === "function" && isPromoted(record.id) ? "Manage boost" : "Promote this ad"}
+      </a>`
+          : ""
+      }`;
     return;
   }
 
@@ -240,7 +250,7 @@ function renderAll(record) {
 
 /* --------------------------------- Events ------------------------------------- */
 function toggleFav(id, record) {
-  state.favs[id] = !state.favs[id];
+  state.favs[id] = toggleFavorite(id);
   renderGallery(record);
   renderSimilar(record);
   refreshIcons();

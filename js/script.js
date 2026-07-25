@@ -33,7 +33,7 @@ const LISTINGS = [
 // NAV_LINKS, BOTTOM_NAV, priceStub(), favButtonHTML() and refreshIcons() come
 // from js/common.js, loaded before this file.
 const state = {
-  favs: {},
+  favs: Object.fromEntries(getFavoriteIds().map((id) => [id, true])),
   tab: "home",
 };
 
@@ -106,7 +106,7 @@ function renderAll() {
 
 /* --------------------------------- Events ------------------------------------- */
 function toggleFav(id) {
-  state.favs[id] = !state.favs[id];
+  state.favs[id] = toggleFavorite(id);
   renderFeatured();
   renderListings();
   refreshIcons();

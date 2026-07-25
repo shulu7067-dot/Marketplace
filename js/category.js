@@ -10,7 +10,7 @@ const state = {
   category: null,
   subcategory: "All",
   sortBy: "newest",
-  favs: {},
+  favs: Object.fromEntries(getFavoriteIds().map((id) => [id, true])),
 };
 
 function getRequestedSlug() {
@@ -142,7 +142,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const favBtn = e.target.closest("[data-fav-id]");
     if (favBtn) {
-      state.favs[favBtn.dataset.favId] = !state.favs[favBtn.dataset.favId];
+      state.favs[favBtn.dataset.favId] = toggleFavorite(favBtn.dataset.favId);
       renderResults();
       return;
     }
