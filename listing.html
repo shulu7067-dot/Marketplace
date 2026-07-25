@@ -32,9 +32,9 @@
             <span class="brand-mark">M</span>
             <span class="brand-name">Marka</span>
           </div>
-          <button class="icon-btn icon-btn--dot" aria-label="Notifications">
+          <a class="icon-btn icon-btn--dot" data-notif-bell href="notifications.html" aria-label="Notifications">
             <i data-lucide="bell"></i>
-          </button>
+          </a>
         </header>
 
         <!-- Desktop / laptop top nav -->
@@ -45,9 +45,12 @@
           </div>
           <nav class="nav-links" id="navLinks"></nav>
           <div class="topbar-actions">
-            <button class="icon-btn icon-btn--dot" aria-label="Notifications">
+            <a class="icon-btn icon-btn--dot" id="notificationsBtn" data-notif-bell href="notifications.html" aria-label="Notifications">
               <i data-lucide="bell"></i>
-            </button>
+            </a>
+            <a class="icon-btn" id="messagesBtn" href="messages.html" aria-label="Messages">
+              <i data-lucide="message-circle"></i>
+            </a>
             <a class="post-ad-btn" href="sell.html">
               <i data-lucide="plus" class="accent-icon"></i> Post ad
             </a>
@@ -144,6 +147,10 @@
     </div>
 
     <script src="js/common.js"></script>
+    <script src="js/messages-data.js"></script>
+    <script src="js/messages-store.js"></script>
+    <script src="js/notifications-data.js"></script>
+    <script src="js/notifications-store.js"></script>
     <script src="js/listing-data.js"></script>
     <script src="js/listings-store.js"></script>
     <script src="js/listing.js"></script>

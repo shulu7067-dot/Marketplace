@@ -33,9 +33,9 @@
             <span class="brand-mark">M</span>
             <span class="brand-name">Marka</span>
           </div>
-          <button class="icon-btn icon-btn--dot" aria-label="Notifications">
+          <a class="icon-btn icon-btn--dot" data-notif-bell href="notifications.html" aria-label="Notifications">
             <i data-lucide="bell"></i>
-          </button>
+          </a>
         </header>
 
         <!-- Desktop / laptop top nav -->
@@ -46,9 +46,12 @@
           </div>
           <nav class="nav-links" id="navLinks"></nav>
           <div class="topbar-actions">
-            <button class="icon-btn icon-btn--dot" aria-label="Notifications">
+            <a class="icon-btn icon-btn--dot" id="notificationsBtn" data-notif-bell href="notifications.html" aria-label="Notifications">
               <i data-lucide="bell"></i>
-            </button>
+            </a>
+            <a class="icon-btn" id="messagesBtn" href="messages.html" aria-label="Messages">
+              <i data-lucide="message-circle"></i>
+            </a>
             <a class="post-ad-btn" href="sell.html">
               <i data-lucide="plus" class="accent-icon"></i> Post ad
             </a>
@@ -74,7 +77,7 @@
           </div>
           <div class="profile-name-row">
             <h1 class="profile-name" id="profileName"></h1>
-            <span class="verified-tag" id="profileVerified"><i data-lucide="badge-check"></i> Verified</span>
+            <button type="button" class="verified-tag" id="profileVerified"></button>
           </div>
           <div class="profile-meta">
             <span class="profile-meta-item"><i data-lucide="map-pin"></i><span id="profileLoc"></span></span>
@@ -139,6 +142,15 @@
 
           <!-- Reviews panel -->
           <div class="tab-panel" id="panel-reviews" hidden>
+            <div class="rating-summary" id="ratingSummary"></div>
+            <div class="reviews-toolbar">
+              <span class="reviews-count" id="reviewsCount"></span>
+              <div class="sub-tabs sub-tabs--sort" id="reviewsSort" role="tablist" aria-label="Sort reviews">
+                <button class="sub-tab active" data-review-sort="recent" role="tab" aria-selected="true">Newest</button>
+                <button class="sub-tab" data-review-sort="highest" role="tab" aria-selected="false">Highest rated</button>
+                <button class="sub-tab" data-review-sort="lowest" role="tab" aria-selected="false">Lowest rated</button>
+              </div>
+            </div>
             <div class="reviews-list" id="reviewsList"></div>
           </div>
         </section>
@@ -157,6 +169,10 @@
     </div>
 
     <script src="js/common.js"></script>
+    <script src="js/messages-data.js"></script>
+    <script src="js/messages-store.js"></script>
+    <script src="js/notifications-data.js"></script>
+    <script src="js/notifications-store.js"></script>
     <script src="js/listing-data.js"></script>
     <script src="js/listings-store.js"></script>
     <script src="js/saved-searches-store.js"></script>
