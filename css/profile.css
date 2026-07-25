@@ -16,11 +16,33 @@
 @media (min-width: 1280px) { .profile-header { padding: 0 40px 20px; } }
 
 .profile-cover {
+  position: relative;
   height: 96px;
   border-radius: 16px;
   background: linear-gradient(120deg, var(--primary), var(--secondary) 60%, var(--accent));
+  background-size: cover;
+  background-position: center;
 }
 @media (min-width: 1024px) { .profile-cover { height: 132px; } }
+
+.cover-photo-btn {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(22, 27, 44, 0.55);
+  color: #fff;
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cover-photo-btn:hover { background: rgba(22, 27, 44, 0.72); }
+.cover-photo-btn svg, .cover-photo-btn i { width: 15px; height: 15px; }
 
 .profile-identity {
   display: flex;
@@ -29,6 +51,13 @@
   margin-top: -34px;
   padding: 0 4px;
 }
+
+.profile-avatar-wrap {
+  position: relative;
+  width: 84px;
+  height: 84px;
+}
+@media (min-width: 1024px) { .profile-avatar-wrap { width: 104px; height: 104px; } }
 
 .profile-avatar {
   width: 84px;
@@ -46,6 +75,25 @@
   justify-content: center;
 }
 @media (min-width: 1024px) { .profile-avatar { width: 104px; height: 104px; min-width: 104px; font-size: 34px; } }
+
+.avatar-photo-btn {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  border-radius: 999px;
+  border: 3px solid var(--bg);
+  background: var(--text-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.avatar-photo-btn:hover { background: var(--secondary); }
+.avatar-photo-btn svg, .avatar-photo-btn i { width: 13px; height: 13px; }
+@media (min-width: 1024px) { .avatar-photo-btn { width: 34px; height: 34px; min-width: 34px; } }
 
 .profile-edit-btn {
   display: flex;
