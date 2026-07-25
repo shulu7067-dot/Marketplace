@@ -155,6 +155,11 @@ function renderActionArea(record) {
       <i data-lucide="${blocked ? "user-check" : "user-x"}"></i> ${blocked ? "Unblock user" : "Block user"}
     </button>`;
 
+  if (!blocked && typeof recordListingEvent === "function") {
+    document.getElementById("messageSellerBtn").addEventListener("click", () => recordListingEvent(record.id, "message"));
+    document.getElementById("callSellerBtn").addEventListener("click", () => recordListingEvent(record.id, "contact"));
+  }
+
   if (blocked) return;
 
   // Reuse an existing thread for this listing, or open a new one, then send
@@ -338,6 +343,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const record = getRecordForId(getRequestedId());
   renderAll(record);
   if (!record.isOwn && typeof recordListingView === "function") recordListingView(record.id);
+  if (!record.isOwn && typeof recordListingEvent === "function") recordListingEvent(record.id, "view");
 
   document.addEventListener("click", (e) => {
     const disabledAction = e.target.closest(".btn-disabled");

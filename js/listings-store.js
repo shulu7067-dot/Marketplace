@@ -132,6 +132,10 @@ function userListingToRecord(item) {
     title: item.title || "Untitled ad",
     price: item.price ? `$${Number(item.price).toLocaleString()}` : "$0",
     loc: item.location || "—",
+    province: item.province || null,
+    city: item.city || null,
+    lat: typeof item.lat === "number" ? item.lat : null,
+    lng: typeof item.lng === "number" ? item.lng : null,
     tag: item.category || "Other",
     condition: item.condition || "—",
     datePosted:

@@ -152,6 +152,9 @@ function ownedListingCardHTML(item) {
         <span class="status-pill status-pill--${item.status}">${meta.label}</span>
         ${promoted ? `<div class="boosted-badge boosted-badge--corner"><i data-lucide="zap"></i> Boosted</div>` : ""}
         <div class="card-owner-actions">
+          <a class="card-owner-btn" href="insights.html?id=${item.id}" aria-label="View insights" title="Insights">
+            <i data-lucide="bar-chart-3"></i>
+          </a>
           <button type="button" class="card-owner-btn" data-edit-id="${item.id}" aria-label="Edit listing" title="Edit">
             <i data-lucide="pencil"></i>
           </button>
@@ -188,9 +191,12 @@ function demoOwnedListingCardHTML(item, status) {
         ${
           canPromote
             ? `<div class="card-owner-actions">
+          <a class="card-owner-btn" href="insights.html?id=${item.id}" aria-label="View insights" title="Insights"><i data-lucide="bar-chart-3"></i></a>
           <a class="card-owner-btn card-owner-btn--promote" href="promote.html?id=${item.id}" aria-label="${promoted ? "Manage boost" : "Promote listing"}" title="${promoted ? "Manage boost" : "Promote"}"><i data-lucide="rocket"></i></a>
         </div>`
-            : ""
+            : `<div class="card-owner-actions">
+          <a class="card-owner-btn" href="insights.html?id=${item.id}" aria-label="View insights" title="Insights"><i data-lucide="bar-chart-3"></i></a>
+        </div>`
         }
       </div>
       <div class="listing-body">
@@ -819,6 +825,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (search) window.location.href = savedSearchURL(search);
       return;
     }
+
+    if (e.target.closest(".card-owner-actions a[href]")) return;
 
     const card = e.target.closest("[data-listing-id]");
     if (card) {

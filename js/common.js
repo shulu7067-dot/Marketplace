@@ -7,7 +7,8 @@
    ============================================================================ */
 
 const NAV_LINKS = ["Home", "Categories", "Blog", "Contact"];
-const NAV_LINK_HREFS = { Home: "index.html", Categories: "categories.html" };
+const NAV_LINK_HREFS = { Home: "index.html", Categories: "categories.html", Blog: "blog.html", Contact: "contact.html" };
+const NAV_LINK_ICONS = { Home: "home", Categories: "grid-3x3", Blog: "newspaper", Contact: "mail" };
 
 const BOTTOM_NAV = [
   { id: "home", label: "Home", icon: "home", href: "index.html" },
@@ -164,4 +165,105 @@ if (typeof window !== "undefined") {
   window.addEventListener("marka:notifications-updated", applyNotificationsTopbarBadge);
   document.addEventListener("DOMContentLoaded", applyMessagesTopbarBadge);
   document.addEventListener("DOMContentLoaded", applyNotificationsTopbarBadge);
+}
+
+/* ------------------------------ Mobile nav drawer -------------------------------
+   Every page's mobile/tablet topbar has a #menuBtn hamburger (hidden by CSS on
+   desktop, where nav-links + topbar-actions already cover the same ground).
+   Rather than duplicate a drawer's markup on every page, it's built once here,
+   lazily, the first time #menuBtn is clicked. It mirrors the primary nav
+   (NAV_LINKS) plus quick links to the pages the bottom nav already covers, so
+   everything reachable elsewhere on the site is one tap away. ---------------- */
+const DRAWER_QUICK_LINKS = [
+  { label: "Favorites", icon: "heart", href: "favorites.html", key: "favorites" },
+  { label: "Messages", icon: "message-circle", href: "messages.html", key: "messages" },
+  { label: "Notifications", icon: "bell", href: "notifications.html", key: "notifications" },
+  { label: "Post an ad", icon: "plus", href: "sell.html", key: "sell" },
+  { label: "Your profile", icon: "user", href: "profile.html", key: "profile" },
+];
+
+function currentPageFile() {
+  const path = window.location.pathname.split("/").pop();
+  return path === "" ? "index.html" : path;
+}
+
+function drawerQuickLinkCount(key) {
+  if (key === "favorites" && typeof getFavoriteCount === "function") return getFavoriteCount();
+  if (key === "messages" && typeof getTotalUnreadCount === "function") return getTotalUnreadCount();
+  if (key === "notifications" && typeof getTotalUnreadNotificationsCount === "function") return getTotalUnreadNotificationsCount();
+  return 0;
+}
+
+function closeNavDrawer() {
+  const overlay = document.getElementById("navDrawerOverlay");
+  if (!overlay) return;
+  overlay.classList.remove("open");
+  document.body.classList.remove("drawer-open");
+}
+
+function buildNavDrawer() {
+  if (document.getElementById("navDrawerOverlay")) return;
+  const current = currentPageFile();
+
+  const overlay = document.createElement("div");
+  overlay.className = "drawer-overlay";
+  overlay.id = "navDrawerOverlay";
+  overlay.innerHTML = `
+    <nav class="nav-drawer" role="dialog" aria-modal="true" aria-label="Main menu">
+      <div class="drawer-head">
+        <div class="brand">
+          <span class="brand-mark">M</span>
+          <span class="brand-name">Marka</span>
+        </div>
+        <button type="button" class="icon-btn" id="drawerCloseBtn" aria-label="Close menu">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="drawer-links">
+        ${NAV_LINKS.map((label) => {
+          const href = NAV_LINK_HREFS[label] || "#";
+          const active = href === current;
+          return `<a class="drawer-link ${active ? "active" : ""}" href="${href}">
+            <i data-lucide="${NAV_LINK_ICONS[label] || "circle"}"></i>
+            <span>${label}</span>
+          </a>`;
+        }).join("")}
+      </div>
+      <div class="drawer-divider"></div>
+      <div class="drawer-links">
+        ${DRAWER_QUICK_LINKS.map((n) => {
+          const active = n.href === current;
+          const count = drawerQuickLinkCount(n.key);
+          return `<a class="drawer-link ${active ? "active" : ""}" href="${n.href}">
+            <i data-lucide="${n.icon}"></i>
+            <span>${n.label}</span>
+            ${count > 0 ? `<span class="drawer-badge">${count}</span>` : ""}
+          </a>`;
+        }).join("")}
+      </div>
+      <div class="drawer-footer">© Marka — a demo marketplace</div>
+    </nav>`;
+  document.body.appendChild(overlay);
+  refreshIcons();
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeNavDrawer();
+  });
+  document.getElementById("drawerCloseBtn").addEventListener("click", closeNavDrawer);
+}
+
+function openNavDrawer() {
+  buildNavDrawer();
+  const overlay = document.getElementById("navDrawerOverlay");
+  document.body.classList.add("drawer-open");
+  requestAnimationFrame(() => overlay.classList.add("open"));
+}
+
+if (typeof window !== "undefined") {
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("#menuBtn")) openNavDrawer();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeNavDrawer();
+  });
 }

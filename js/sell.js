@@ -33,6 +33,119 @@ function renderConditionOptions() {
     options.map((c) => `<option value="${c}">${c}</option>`).join("");
 }
 
+/* ------------------------------ Location / map ------------------------------ */
+let sellMap = null;
+let sellMapMarker = null;
+const sellLocation = { province: "", city: "", lat: null, lng: null };
+
+function renderProvinceOptions() {
+  const select = document.getElementById("adProvince");
+  select.innerHTML =
+    `<option value="" disabled ${sellLocation.province ? "" : "selected"}>Choose a province/state</option>` +
+    getProvinceOptions().map((p) => `<option value="${p.code}">${p.name}</option>`).join("");
+  select.value = sellLocation.province || "";
+}
+
+function renderCityOptions() {
+  const select = document.getElementById("adCity");
+  const cities = sellLocation.province ? getCityOptions(sellLocation.province) : [];
+  select.innerHTML =
+    `<option value="" disabled ${sellLocation.city ? "" : "selected"}>Choose a city</option>` +
+    cities.map((c) => `<option value="${c}">${c}</option>`).join("");
+  select.value = sellLocation.city || "";
+  select.disabled = !sellLocation.province;
+}
+
+function syncLocationText() {
+  const p = findProvince(sellLocation.province);
+  if (sellLocation.city && p) {
+    document.getElementById("adLocation").value = `${sellLocation.city}, ${p.code}`;
+  }
+}
+
+function ensureSellMap(lat, lng) {
+  if (typeof L === "undefined") return null;
+  document.getElementById("formMapWrap").hidden = false;
+  if (!sellMap) {
+    sellMap = L.map("sellMap", { scrollWheelZoom: false }).setView([lat, lng], 12);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(sellMap);
+    sellMapMarker = L.marker([lat, lng], { draggable: true }).addTo(sellMap);
+    sellMapMarker.on("dragend", () => {
+      const pos = sellMapMarker.getLatLng();
+      sellLocation.lat = pos.lat;
+      sellLocation.lng = pos.lng;
+      const nearest = findNearestCity(pos.lat, pos.lng);
+      if (nearest) {
+        document.getElementById("gpsStatus").textContent = `Pin set near ${nearest.city}, ${nearest.province}`;
+        document.getElementById("gpsStatus").classList.remove("is-error");
+      }
+    });
+  } else {
+    sellMap.setView([lat, lng], 12);
+    sellMapMarker.setLatLng([lat, lng]);
+  }
+  setTimeout(() => sellMap.invalidateSize(), 50);
+  return sellMap;
+}
+
+function applyLocation({ province, city, lat, lng, statusMessage }) {
+  sellLocation.province = province || sellLocation.province;
+  sellLocation.city = city || sellLocation.city;
+  sellLocation.lat = typeof lat === "number" ? lat : sellLocation.lat;
+  sellLocation.lng = typeof lng === "number" ? lng : sellLocation.lng;
+  renderProvinceOptions();
+  renderCityOptions();
+  syncLocationText();
+  if (sellLocation.lat !== null && sellLocation.lng !== null) ensureSellMap(sellLocation.lat, sellLocation.lng);
+  const statusEl = document.getElementById("gpsStatus");
+  if (statusMessage) {
+    statusEl.textContent = statusMessage;
+    statusEl.classList.remove("is-error");
+    statusEl.classList.add("is-success");
+  }
+  refreshIcons();
+}
+
+async function handleUseGps() {
+  const btn = document.getElementById("useGpsBtn");
+  const label = document.getElementById("useGpsLabel");
+  const status = document.getElementById("gpsStatus");
+  status.classList.remove("is-error", "is-success");
+  label.textContent = "Locating…";
+  btn.disabled = true;
+
+  try {
+    const { lat, lng } = await requestUserLocation();
+    btn.classList.add("active");
+
+    // Best-effort human-readable place name via Nominatim; either way we
+    // snap to the nearest seeded city so province/city filters stay in sync.
+    const reverse = await reverseGeocode(lat, lng);
+    const nearest = findNearestCity(lat, lng);
+
+    if (nearest) {
+      applyLocation({
+        province: nearest.province,
+        city: nearest.city,
+        lat,
+        lng,
+        statusMessage: reverse && reverse.display ? `Located: ${reverse.city || nearest.city}, ${nearest.province}` : `Located near ${nearest.city}, ${nearest.province}`,
+      });
+    } else {
+      applyLocation({ lat, lng, statusMessage: "Location found — drag the pin to fine-tune it." });
+    }
+  } catch (err) {
+    status.classList.add("is-error");
+    status.textContent = userGeoState.error || "Couldn't get your location. You can still pick a province/city below.";
+  } finally {
+    label.textContent = "Use my current location";
+    btn.disabled = false;
+  }
+}
+
 /* --------------------------------- Photos --------------------------------- */
 function renderPhotoGrid() {
   const grid = document.getElementById("photoGrid");
@@ -97,6 +210,10 @@ function gatherFormData() {
     description: document.getElementById("adDescription").value.trim(),
     price: document.getElementById("adPrice").value,
     location: document.getElementById("adLocation").value.trim(),
+    province: sellLocation.province || document.getElementById("adProvince").value,
+    city: sellLocation.city || document.getElementById("adCity").value,
+    lat: sellLocation.lat,
+    lng: sellLocation.lng,
     photos: photos.map((p) => p.url),
   };
 }
@@ -114,6 +231,14 @@ function loadForEditing(id) {
   document.getElementById("adLocation").value = item.location || "";
   document.getElementById("adCategory").value = item.category || "";
   document.getElementById("adCondition").value = item.condition || "";
+
+  sellLocation.province = item.province || "";
+  sellLocation.city = item.city || "";
+  sellLocation.lat = typeof item.lat === "number" ? item.lat : null;
+  sellLocation.lng = typeof item.lng === "number" ? item.lng : null;
+  renderProvinceOptions();
+  renderCityOptions();
+  if (sellLocation.lat !== null && sellLocation.lng !== null) ensureSellMap(sellLocation.lat, sellLocation.lng);
 
   photos = (item.photos || []).map((url) => ({ url }));
   renderPhotoGrid();
@@ -246,6 +371,8 @@ document.addEventListener("DOMContentLoaded", () => {
   renderCategoryOptions();
   renderConditionOptions();
   renderPhotoGrid();
+  renderProvinceOptions();
+  renderCityOptions();
 
   const editId = new URLSearchParams(window.location.search).get("edit");
   if (editId) loadForEditing(editId);
@@ -254,6 +381,19 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("sellForm").addEventListener("submit", handleSubmit);
   document.getElementById("saveDraftBtn").addEventListener("click", handleSaveDraft);
   document.getElementById("deleteDraftBtn").addEventListener("click", handleDeleteListing);
+
+  document.getElementById("adProvince").addEventListener("change", (e) => {
+    sellLocation.province = e.target.value;
+    sellLocation.city = "";
+    renderCityOptions();
+  });
+
+  document.getElementById("adCity").addEventListener("change", (e) => {
+    const coords = getCityCoords(sellLocation.province, e.target.value);
+    applyLocation({ city: e.target.value, lat: coords ? coords.lat : null, lng: coords ? coords.lng : null });
+  });
+
+  document.getElementById("useGpsBtn").addEventListener("click", handleUseGps);
 
   document.getElementById("previewBtn").addEventListener("click", openPreview);
   document.getElementById("previewModalClose").addEventListener("click", closePreview);

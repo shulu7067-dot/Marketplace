@@ -44,24 +44,52 @@ const state = {
   maxPrice: getRequestedNumber("max"),
   condition: getRequestedOption("condition", BROWSE_CONDITION_OPTIONS, "Any condition"),
   location: getRequestedOption("location", BROWSE_LOCATION_OPTIONS, "All locations"),
+  province: getRequestedOption("province", BROWSE_PROVINCE_OPTIONS, "All provinces"),
+  city: "All cities",
+  nearMe: false,
+  radiusKm: DISTANCE_RADIUS_OPTIONS[2], // 25km default once "near me" is on
   sortBy: "newest",
+  view: "grid", // "grid" | "map"
   page: 1,
   favs: Object.fromEntries(getFavoriteIds().map((id) => [id, true])),
 };
 
+let browseMap = null;
+let browseMapMarkers = [];
+
 /* --------------------------------- Helpers ------------------------------------ */
+// Attaches a live distanceKm (and formatted label) to every listing once the
+// user's location is known — used by both the sort and the card badges.
+function withDistances(list) {
+  if (userGeoState.status !== "granted") return list;
+  return list.map((l) => {
+    const distanceKm = l.lat !== null && l.lng !== null ? haversineDistanceKm(userGeoState.lat, userGeoState.lng, l.lat, l.lng) : null;
+    return { ...l, distanceKm };
+  });
+}
+
 function getFilteredListings() {
   const q = state.query.trim().toLowerCase();
-  return BROWSE_LISTINGS.filter((l) => {
+  let list = BROWSE_LISTINGS.filter((l) => {
     if (q && !l.title.toLowerCase().includes(q)) return false;
     if (state.category !== "All categories" && l.tag !== state.category) return false;
     if (state.minPrice !== null && l.priceValue < state.minPrice) return false;
     if (state.maxPrice !== null && l.priceValue > state.maxPrice) return false;
     if (state.condition !== "Any condition" && l.condition !== state.condition) return false;
     if (state.location !== "All locations" && l.loc !== state.location) return false;
+    if (state.province !== "All provinces" && l.province !== state.province) return false;
+    if (state.city !== "All cities" && l.city !== state.city) return false;
     if (isUserBlocked(l.sellerName)) return false;
     return true;
   });
+
+  list = withDistances(list);
+
+  if (state.nearMe && userGeoState.status === "granted") {
+    list = list.filter((l) => l.distanceKm === null || l.distanceKm <= state.radiusKm);
+  }
+
+  return list;
 }
 
 function getSortedListings(list) {
@@ -69,6 +97,7 @@ function getSortedListings(list) {
   if (state.sortBy === "price-low") arr.sort((a, b) => a.priceValue - b.priceValue);
   else if (state.sortBy === "price-high") arr.sort((a, b) => b.priceValue - a.priceValue);
   else if (state.sortBy === "popular") arr.sort((a, b) => b.popularity - a.popularity);
+  else if (state.sortBy === "distance") arr.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
   else arr.sort((a, b) => a.hoursAgo - b.hoursAgo); // newest
   return arr;
 }
@@ -80,6 +109,9 @@ function resetFilters() {
   state.maxPrice = null;
   state.condition = "Any condition";
   state.location = "All locations";
+  state.province = "All provinces";
+  state.city = "All cities";
+  state.nearMe = false;
   state.page = 1;
   document.getElementById("browseSearch").value = "";
   document.getElementById("filterCategory").value = "All categories";
@@ -87,6 +119,9 @@ function resetFilters() {
   document.getElementById("filterPriceMax").value = "";
   document.getElementById("filterCondition").value = "Any condition";
   document.getElementById("filterLocation").value = "All locations";
+  document.getElementById("useMyLocationBtn").classList.remove("active");
+  document.getElementById("filterRadius").disabled = true;
+  document.getElementById("distanceStatus").textContent = "";
   renderAll();
 }
 
@@ -113,12 +148,37 @@ function renderFilterOptions() {
   locSel.innerHTML = BROWSE_LOCATION_OPTIONS.map((l) => `<option value="${l}">${l}</option>`).join("");
   locSel.value = state.location;
 
+  const provSel = document.getElementById("filterProvince");
+  provSel.innerHTML = BROWSE_PROVINCE_OPTIONS.map((code) => {
+    const p = findProvince(code);
+    return `<option value="${code}">${p ? p.name : code}</option>`;
+  }).join("");
+  provSel.value = state.province;
+
+  const citySel = document.getElementById("filterCity");
+  const cityOptions = getBrowseCitiesForProvince(state.province);
+  if (!cityOptions.includes(state.city)) state.city = "All cities";
+  citySel.innerHTML = cityOptions.map((c) => `<option value="${c}">${c}</option>`).join("");
+  citySel.value = state.city;
+  citySel.disabled = state.province === "All provinces";
+
+  const radiusSel = document.getElementById("filterRadius");
+  radiusSel.innerHTML = DISTANCE_RADIUS_OPTIONS.map((km) => `<option value="${km}">Within ${km} km</option>`).join("");
+  radiusSel.value = state.radiusKm;
+  radiusSel.disabled = userGeoState.status !== "granted";
+
   document.getElementById("filterPriceMin").value = state.minPrice ?? "";
   document.getElementById("filterPriceMax").value = state.maxPrice ?? "";
 
+  const sortOptions = BROWSE_SORT_OPTIONS.slice();
+  if (userGeoState.status === "granted") sortOptions.push({ value: "distance", label: "Nearest to me" });
+  else if (state.sortBy === "distance") state.sortBy = "newest";
   const sortSel = document.getElementById("resultsSort");
-  sortSel.innerHTML = BROWSE_SORT_OPTIONS.map((s) => `<option value="${s.value}">${s.label}</option>`).join("");
+  sortSel.innerHTML = sortOptions.map((s) => `<option value="${s.value}">${s.label}</option>`).join("");
   sortSel.value = state.sortBy;
+
+  const locateBtn = document.getElementById("useMyLocationBtn");
+  locateBtn.classList.toggle("active", state.nearMe && userGeoState.status === "granted");
 }
 
 function renderChips() {
@@ -131,6 +191,12 @@ function renderChips() {
   else if (state.maxPrice !== null) chips.push({ key: "price", label: `Under $${state.maxPrice}` });
   if (state.condition !== "Any condition") chips.push({ key: "condition", label: state.condition });
   if (state.location !== "All locations") chips.push({ key: "location", label: state.location });
+  if (state.province !== "All provinces") {
+    const p = findProvince(state.province);
+    chips.push({ key: "province", label: p ? p.name : state.province });
+  }
+  if (state.city !== "All cities") chips.push({ key: "city", label: state.city });
+  if (state.nearMe && userGeoState.status === "granted") chips.push({ key: "nearMe", label: `Within ${state.radiusKm} km` });
   if (state.query.trim()) chips.push({ key: "query", label: `"${state.query.trim()}"` });
 
   if (!chips.length) {
@@ -183,6 +249,7 @@ function renderGrid(pageItems) {
       <div class="listing-body">
         <div class="card-title truncate">${item.title}</div>
         <div class="card-loc"><i data-lucide="map-pin"></i><span>${item.loc}</span></div>
+        ${userGeoState.status === "granted" && item.distanceKm !== null ? `<div class="card-distance"><i data-lucide="navigation"></i>${formatDistance(item.distanceKm)}</div>` : ""}
         <div class="card-footer">
           ${priceStub(item.price)}
           <span class="card-time">${formatShortAgo(item.hoursAgo)} ago</span>
@@ -264,9 +331,98 @@ function renderAll() {
   const pageItems = filtered.slice((state.page - 1) * PER_PAGE, state.page * PER_PAGE);
 
   renderResultsHeader(filtered.length);
-  renderGrid(pageItems);
-  renderPagination(totalPages);
+
+  if (state.view === "map") {
+    renderMapView(filtered);
+  } else {
+    renderGrid(pageItems);
+    renderPagination(totalPages);
+  }
   refreshIcons();
+}
+
+/* ----------------------------------- Map view ----------------------------------- */
+function setView(view) {
+  state.view = view;
+  document.getElementById("gridViewBtn").classList.toggle("active", view === "grid");
+  document.getElementById("gridViewBtn").setAttribute("aria-pressed", String(view === "grid"));
+  document.getElementById("mapViewBtn").classList.toggle("active", view === "map");
+  document.getElementById("mapViewBtn").setAttribute("aria-pressed", String(view === "map"));
+  document.getElementById("browseGrid").hidden = view !== "grid";
+  document.getElementById("pagination").hidden = view !== "grid";
+  document.getElementById("mapView").hidden = view !== "map";
+  document.getElementById("emptyState").hidden = true;
+  renderAll();
+}
+
+function ensureBrowseMap() {
+  if (browseMap || typeof L === "undefined") return browseMap;
+  browseMap = L.map("browseMap", { scrollWheelZoom: false }).setView([40.73, -74.0], 9);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+  }).addTo(browseMap);
+  return browseMap;
+}
+
+function markerIcon() {
+  return L.divIcon({
+    className: "",
+    html: `<div class="marka-pin"><span>$</span></div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 28],
+    popupAnchor: [0, -26],
+  });
+}
+
+function renderMapView(list) {
+  if (typeof L === "undefined") {
+    document.getElementById("browseMap").innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-tertiary)">Map couldn't load — check your connection.</div>`;
+    return;
+  }
+  const map = ensureBrowseMap();
+  if (!map) return;
+
+  browseMapMarkers.forEach((m) => map.removeLayer(m));
+  browseMapMarkers = [];
+
+  const withCoords = list.filter((l) => l.lat !== null && l.lng !== null);
+
+  withCoords.forEach((item) => {
+    const marker = L.marker([item.lat, item.lng], { icon: markerIcon() }).addTo(map);
+    const distanceLabel = userGeoState.status === "granted" && item.distanceKm !== null ? `<div class="map-popup-loc">${formatDistance(item.distanceKm)}</div>` : "";
+    marker.bindPopup(`
+      <div class="map-popup">
+        <div class="map-popup-media" style="background:linear-gradient(135deg, ${item.grad[0]}, ${item.grad[1]})"></div>
+        <div class="map-popup-title">${item.title}</div>
+        ${priceStub(item.price)}
+        <div class="map-popup-loc">${item.loc}</div>
+        ${distanceLabel}
+        <a class="map-popup-link" href="listing.html?id=${item.id}">View listing</a>
+      </div>
+    `);
+    browseMapMarkers.push(marker);
+  });
+
+  setTimeout(() => map.invalidateSize(), 50);
+
+  if (withCoords.length) {
+    const bounds = L.latLngBounds(withCoords.map((l) => [l.lat, l.lng]));
+    if (userGeoState.status === "granted") bounds.extend([userGeoState.lat, userGeoState.lng]);
+    map.fitBounds(bounds.pad(0.25), { maxZoom: 13 });
+  }
+
+  if (userGeoState.status === "granted") {
+    L.circleMarker([userGeoState.lat, userGeoState.lng], {
+      radius: 7,
+      color: "#2F5D62",
+      fillColor: "#2F5D62",
+      fillOpacity: 0.9,
+      weight: 2,
+    })
+      .addTo(map)
+      .bindPopup("You are here");
+  }
 }
 
 /* --------------------------------- Events ------------------------------------- */
@@ -325,6 +481,63 @@ document.addEventListener("DOMContentLoaded", () => {
     renderAll();
   });
 
+  document.getElementById("filterProvince").addEventListener("change", (e) => {
+    state.province = e.target.value;
+    state.city = "All cities";
+    state.page = 1;
+    renderAll();
+  });
+
+  document.getElementById("filterCity").addEventListener("change", (e) => {
+    state.city = e.target.value;
+    state.page = 1;
+    renderAll();
+  });
+
+  document.getElementById("filterRadius").addEventListener("change", (e) => {
+    state.radiusKm = Number(e.target.value);
+    state.page = 1;
+    renderAll();
+  });
+
+  document.getElementById("useMyLocationBtn").addEventListener("click", async () => {
+    const btn = document.getElementById("useMyLocationBtn");
+    const label = document.getElementById("useMyLocationLabel");
+    const status = document.getElementById("distanceStatus");
+
+    if (state.nearMe && userGeoState.status === "granted") {
+      // Toggle off
+      state.nearMe = false;
+      btn.classList.remove("active");
+      status.textContent = "";
+      status.classList.remove("is-error");
+      renderAll();
+      return;
+    }
+
+    label.textContent = "Locating…";
+    btn.disabled = true;
+    status.classList.remove("is-error");
+    status.textContent = "";
+    try {
+      await requestUserLocation();
+      state.nearMe = true;
+      const nearest = findNearestCity(userGeoState.lat, userGeoState.lng);
+      status.textContent = nearest ? `Near ${nearest.city}, ${nearest.province}` : "Location found";
+    } catch (err) {
+      status.classList.add("is-error");
+      status.textContent = userGeoState.error || "Couldn't get your location.";
+    } finally {
+      label.textContent = "Search near me";
+      btn.disabled = false;
+      state.page = 1;
+      renderAll();
+    }
+  });
+
+  document.getElementById("gridViewBtn").addEventListener("click", () => setView("grid"));
+  document.getElementById("mapViewBtn").addEventListener("click", () => setView("map"));
+
   document.getElementById("resultsSort").addEventListener("change", (e) => {
     state.sortBy = e.target.value;
     renderAll();
@@ -350,6 +563,13 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("filterBar").classList.toggle("filter-bar--open");
   });
 
+  // index.html's hero filter button links here with ?filters=open so the
+  // filter bar is already expanded when the page lands, instead of making
+  // people tap the toggle a second time.
+  if (new URLSearchParams(window.location.search).get("filters") === "open") {
+    document.getElementById("filterBar").classList.add("filter-bar--open");
+  }
+
   document.getElementById("saveSearchBtn").addEventListener("click", () => {
     const btn = document.getElementById("saveSearchBtn");
     saveSearch(state);
@@ -372,6 +592,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (key === "price") { state.minPrice = null; state.maxPrice = null; minInput.value = ""; maxInput.value = ""; }
       if (key === "condition") state.condition = "Any condition";
       if (key === "location") state.location = "All locations";
+      if (key === "province") { state.province = "All provinces"; state.city = "All cities"; }
+      if (key === "city") state.city = "All cities";
+      if (key === "nearMe") { state.nearMe = false; document.getElementById("useMyLocationBtn").classList.remove("active"); }
       if (key === "query") { state.query = ""; searchInput.value = ""; }
       state.page = 1;
       renderAll();

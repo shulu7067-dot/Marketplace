@@ -73,6 +73,7 @@ function toggleFavorite(id) {
   }
   writeFavoriteIds(ids);
   notifyFavoritesUpdated();
+  if (nowFavorited && typeof recordListingEvent === "function") recordListingEvent(id, "favorite");
   return nowFavorited;
 }
 
