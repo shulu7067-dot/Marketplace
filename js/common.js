@@ -21,10 +21,11 @@ const BOTTOM_NAV = [
 
 /* ------------------------------ Render helpers ------------------------------- */
 function priceStub(price) {
+  const display = typeof formatPrice === "function" ? formatPrice(price) : price;
   return `
     <div class="price-stub">
       <div class="price-stub-inner">
-        <span class="price-text">${price}</span>
+        <span class="price-text">${display}</span>
         <span class="price-stub-dot"></span>
       </div>
     </div>`;

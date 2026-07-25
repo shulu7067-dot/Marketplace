@@ -425,3 +425,8 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 window.addEventListener("load", refreshIcons);
+
+window.addEventListener("marka:currency-changed", () => {
+  const record = getRecordForId(getRequestedId());
+  if (record) renderAll(record);
+});

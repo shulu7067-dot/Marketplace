@@ -362,6 +362,7 @@ function renderSettings() {
   list.innerHTML = SETTINGS_ITEMS.map((item) => {
     const isVerification = item.key === "verification";
     const isBlocked = item.key === "blocked";
+    const isCurrency = item.key === "currency";
     const blockedCount = isBlocked ? getBlockedUsers().length : 0;
     const hint = isVerification
       ? PROFILE.verified
@@ -371,6 +372,12 @@ function renderSettings() {
       ? blockedCount
         ? `${blockedCount} blocked user${blockedCount === 1 ? "" : "s"}`
         : "No blocked users"
+      : isCurrency
+      ? (() => {
+          const code = getSelectedCurrency();
+          const info = CURRENCIES[code];
+          return info ? `${code} — ${info.name}` : code;
+        })()
       : item.hint;
     return `
     <button class="settings-item ${item.danger ? "settings-item--danger" : ""}" type="button" data-settings-key="${item.key || ""}">
@@ -658,6 +665,56 @@ function blockedUserRowHTML(user) {
     </div>`;
 }
 
+function openCurrencyModal() {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  document.body.appendChild(overlay);
+
+  function paint() {
+    const current = getSelectedCurrency();
+    const options = getCurrencyOptions();
+    overlay.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <h2 class="modal-title">Currency</h2>
+          <button type="button" class="modal-close" aria-label="Close"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-note">Prices across Marka display in this currency. We'll also suggest one automatically based on your location, unless you pick your own here.</p>
+          <select class="form-select" id="currencySelect">
+            ${options.map((o) => `<option value="${o.code}" ${o.code === current ? "selected" : ""}>${o.code} — ${o.name}</option>`).join("")}
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" data-action="close">Cancel</button>
+          <button type="button" class="btn-primary" data-action="save">Save</button>
+        </div>
+      </div>`;
+    refreshIcons();
+  }
+  paint();
+  requestAnimationFrame(() => overlay.classList.add("open"));
+
+  function cleanup() {
+    overlay.classList.remove("open");
+    setTimeout(() => overlay.remove(), 200);
+  }
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay || e.target.closest(".modal-close") || e.target.closest('[data-action="close"]')) {
+      return cleanup();
+    }
+    if (e.target.closest('[data-action="save"]')) {
+      const select = document.getElementById("currencySelect");
+      setSelectedCurrency(select.value);
+      renderSettings();
+      renderAll();
+      refreshIcons();
+      return cleanup();
+    }
+  });
+}
+
 function openBlockedUsersModal() {
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
@@ -783,6 +840,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const blockedSettingsBtn = e.target.closest('[data-settings-key="blocked"]');
     if (blockedSettingsBtn) {
       openBlockedUsersModal();
+      return;
+    }
+
+    const currencySettingsBtn = e.target.closest('[data-settings-key="currency"]');
+    if (currencySettingsBtn) {
+      openCurrencyModal();
       return;
     }
 

@@ -186,9 +186,9 @@ function renderChips() {
   const chips = [];
 
   if (state.category !== "All categories") chips.push({ key: "category", label: state.category });
-  if (state.minPrice !== null && state.maxPrice !== null) chips.push({ key: "price", label: `$${state.minPrice} – $${state.maxPrice}` });
-  else if (state.minPrice !== null) chips.push({ key: "price", label: `From $${state.minPrice}` });
-  else if (state.maxPrice !== null) chips.push({ key: "price", label: `Under $${state.maxPrice}` });
+  if (state.minPrice !== null && state.maxPrice !== null) chips.push({ key: "price", label: `${formatPrice(state.minPrice)} – ${formatPrice(state.maxPrice)}` });
+  else if (state.minPrice !== null) chips.push({ key: "price", label: `From ${formatPrice(state.minPrice)}` });
+  else if (state.maxPrice !== null) chips.push({ key: "price", label: `Under ${formatPrice(state.maxPrice)}` });
   if (state.condition !== "Any condition") chips.push({ key: "condition", label: state.condition });
   if (state.location !== "All locations") chips.push({ key: "location", label: state.location });
   if (state.province !== "All provinces") {
@@ -368,7 +368,7 @@ function ensureBrowseMap() {
 function markerIcon() {
   return L.divIcon({
     className: "",
-    html: `<div class="marka-pin"><span>$</span></div>`,
+    html: `<div class="marka-pin"><span>&bull;</span></div>`,
     iconSize: [28, 28],
     iconAnchor: [14, 28],
     popupAnchor: [0, -26],
@@ -522,8 +522,16 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       await requestUserLocation();
       state.nearMe = true;
-      const nearest = findNearestCity(userGeoState.lat, userGeoState.lng);
-      status.textContent = nearest ? `Near ${nearest.city}, ${nearest.province}` : "Location found";
+      // Reverse-geocode for a real, worldwide place name — findNearestCity
+      // only recognizes the seeded demo metro areas, so using it here would
+      // mislabel anyone outside them as whichever of those happens to be
+      // closest (e.g. showing "Boston" to someone nowhere near it).
+      const reverse = await reverseGeocode(userGeoState.lat, userGeoState.lng);
+      const realLabel = formatRealLocationLabel(reverse);
+      status.textContent = realLabel ? `Near ${realLabel}` : "Location found";
+      if (reverse && reverse.countryCode && typeof applyDetectedCountry === "function") {
+        applyDetectedCountry(reverse.countryCode);
+      }
     } catch (err) {
       status.classList.add("is-error");
       status.textContent = userGeoState.error || "Couldn't get your location.";
@@ -650,4 +658,18 @@ document.addEventListener("DOMContentLoaded", () => {
   renderBottomNav("search");
 });
 
+window.addEventListener("marka:currency-changed", () => {
+  if (typeof renderAll === "function") renderAll();
+});
+
 window.addEventListener("load", refreshIcons);
+
+// Leaflet sizes its canvas from the container's dimensions at creation time,
+// so without this a map that's already open goes stale — showing grey/
+// misaligned tiles — after a resize or phone rotation instead of adapting.
+let mapResizeTimer = null;
+window.addEventListener("resize", () => {
+  if (!browseMap) return;
+  clearTimeout(mapResizeTimer);
+  mapResizeTimer = setTimeout(() => browseMap.invalidateSize(), 150);
+});

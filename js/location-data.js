@@ -71,7 +71,27 @@ const PROVINCES = [
       "San Diego": { lat: 32.7157, lng: -117.1611 },
     },
   },
+  // Catch-all for anyone outside the seeded metro areas above (i.e. almost
+  // everyone in the world, including plenty of the US). Every demo listing
+  // lives in one of the named provinces, so this doesn't add browsable
+  // inventory — it exists so the required Province/City selects on the Sell
+  // form always have a truthful option, instead of forcing a GPS location in,
+  // say, Berlin or rural Idaho into the nearest of the six markets above
+  // ("Boston" et al). See OTHER_PROVINCE_CODE / NEARBY_CITY_THRESHOLD_KM below.
+  {
+    code: "OTHER",
+    name: "Other / international",
+    cities: {
+      "Other (enter below)": null,
+    },
+  },
 ];
+
+const OTHER_PROVINCE_CODE = "OTHER";
+// How close (km) a GPS fix needs to be to one of the seeded cities above
+// before it's treated as an actual match — otherwise callers should fall
+// back to OTHER_PROVINCE_CODE rather than mislabeling a far-away location.
+const NEARBY_CITY_THRESHOLD_KM = 40;
 
 function findProvince(code) {
   return PROVINCES.find((p) => p.code === code) || null;
@@ -188,9 +208,22 @@ async function reverseGeocode(lat, lng) {
     return {
       city: addr.city || addr.town || addr.village || addr.suburb || null,
       state: addr.state || null,
+      country: addr.country || null,
+      countryCode: addr.country_code || null, // ISO 3166-1 alpha-2, e.g. "us", "jp"
       display: data.display_name || null,
     };
   } catch {
-    return null; // offline or blocked — caller falls back to findNearestCity
+    return null; // offline or blocked — caller falls back to a generic message
   }
+}
+
+// Builds a real, human-readable place name from a reverseGeocode() result —
+// works anywhere on Earth, unlike findNearestCity which only recognizes the
+// handful of seeded demo metro areas. This is what should be shown to the
+// person (form fields, status text), so a visitor is never told they're in
+// one of the seeded cities just because it's the closest of a short list.
+function formatRealLocationLabel(reverse) {
+  if (!reverse) return null;
+  const parts = [reverse.city, reverse.state, reverse.country].filter(Boolean);
+  return parts.length ? parts.join(", ") : reverse.display || null;
 }

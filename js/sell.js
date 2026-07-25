@@ -57,6 +57,7 @@ function renderCityOptions() {
 }
 
 function syncLocationText() {
+  if (sellLocation.province === OTHER_PROVINCE_CODE) return; // person types their own real place name instead
   const p = findProvince(sellLocation.province);
   if (sellLocation.city && p) {
     document.getElementById("adLocation").value = `${sellLocation.city}, ${p.code}`;
@@ -73,15 +74,22 @@ function ensureSellMap(lat, lng) {
       maxZoom: 19,
     }).addTo(sellMap);
     sellMapMarker = L.marker([lat, lng], { draggable: true }).addTo(sellMap);
-    sellMapMarker.on("dragend", () => {
+    sellMapMarker.on("dragend", async () => {
       const pos = sellMapMarker.getLatLng();
       sellLocation.lat = pos.lat;
       sellLocation.lng = pos.lng;
+      const statusEl = document.getElementById("gpsStatus");
+      statusEl.textContent = "Updating location…";
+      const reverse = await reverseGeocode(pos.lat, pos.lng);
+      const realLabel = formatRealLocationLabel(reverse);
       const nearest = findNearestCity(pos.lat, pos.lng);
-      if (nearest) {
-        document.getElementById("gpsStatus").textContent = `Pin set near ${nearest.city}, ${nearest.province}`;
-        document.getElementById("gpsStatus").classList.remove("is-error");
-      }
+      const isNearbyMatch = nearest && nearest.distanceKm <= NEARBY_CITY_THRESHOLD_KM;
+      statusEl.textContent = realLabel
+        ? `Pin set: ${realLabel}`
+        : isNearbyMatch
+        ? `Pin set near ${nearest.city}, ${nearest.province}`
+        : "Pin set — fill in the location field above.";
+      statusEl.classList.remove("is-error");
     });
   } else {
     sellMap.setView([lat, lng], 12);
@@ -91,14 +99,27 @@ function ensureSellMap(lat, lng) {
   return sellMap;
 }
 
-function applyLocation({ province, city, lat, lng, statusMessage }) {
-  sellLocation.province = province || sellLocation.province;
-  sellLocation.city = city || sellLocation.city;
+function applyLocation({ province, city, lat, lng, locationText, clearProvinceCity, statusMessage }) {
+  if (clearProvinceCity) {
+    sellLocation.province = "";
+    sellLocation.city = "";
+  } else {
+    sellLocation.province = province || sellLocation.province;
+    sellLocation.city = city || sellLocation.city;
+  }
   sellLocation.lat = typeof lat === "number" ? lat : sellLocation.lat;
   sellLocation.lng = typeof lng === "number" ? lng : sellLocation.lng;
   renderProvinceOptions();
   renderCityOptions();
-  syncLocationText();
+  // GPS detection carries its own real place name (locationText) and should
+  // win over the province/city selects, which only cover a handful of demo
+  // markets — otherwise the field would keep getting overwritten with
+  // whichever seeded city happens to be nearest, anywhere on the planet.
+  if (locationText) {
+    document.getElementById("adLocation").value = locationText;
+  } else {
+    syncLocationText();
+  }
   if (sellLocation.lat !== null && sellLocation.lng !== null) ensureSellMap(sellLocation.lat, sellLocation.lng);
   const statusEl = document.getElementById("gpsStatus");
   if (statusMessage) {
@@ -121,21 +142,36 @@ async function handleUseGps() {
     const { lat, lng } = await requestUserLocation();
     btn.classList.add("active");
 
-    // Best-effort human-readable place name via Nominatim; either way we
-    // snap to the nearest seeded city so province/city filters stay in sync.
+    // Reverse-geocode so the location field always reflects where the
+    // visitor actually is, anywhere in the world — not the sample
+    // province/city pairs the required dropdowns below happen to be seeded
+    // with.
     const reverse = await reverseGeocode(lat, lng);
-    const nearest = findNearestCity(lat, lng);
+    const realLabel = formatRealLocationLabel(reverse);
 
-    if (nearest) {
-      applyLocation({
-        province: nearest.province,
-        city: nearest.city,
-        lat,
-        lng,
-        statusMessage: reverse && reverse.display ? `Located: ${reverse.city || nearest.city}, ${nearest.province}` : `Located near ${nearest.city}, ${nearest.province}`,
-      });
-    } else {
-      applyLocation({ lat, lng, statusMessage: "Location found — drag the pin to fine-tune it." });
+    // Only auto-pick a seeded province/city when the GPS fix is genuinely
+    // near one of those demo markets (within NEARBY_CITY_THRESHOLD_KM) —
+    // otherwise fall back to the "Other / international" option so someone
+    // in, say, Tokyo or rural Idaho isn't silently relabeled as Boston.
+    const nearest = findNearestCity(lat, lng);
+    const isNearbyMatch = nearest && nearest.distanceKm <= NEARBY_CITY_THRESHOLD_KM;
+
+    applyLocation({
+      province: isNearbyMatch ? nearest.province : OTHER_PROVINCE_CODE,
+      city: isNearbyMatch ? nearest.city : "Other (enter below)",
+      clearProvinceCity: false,
+      lat,
+      lng,
+      locationText: realLabel || (isNearbyMatch ? `${nearest.city}, ${nearest.province}` : ""),
+      statusMessage: realLabel
+        ? `Located: ${realLabel}`
+        : isNearbyMatch
+        ? `Located near ${nearest.city}, ${nearest.province}`
+        : "Location found — drag the pin to fine-tune it, and fill in the location field above.",
+    });
+
+    if (reverse && reverse.countryCode && typeof applyDetectedCountry === "function") {
+      applyDetectedCountry(reverse.countryCode);
     }
   } catch (err) {
     status.classList.add("is-error");
@@ -407,4 +443,14 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   refreshIcons();
+});
+
+// Same rationale as browse.js: keep the Leaflet canvas in sync with its
+// container's actual size across resizes/orientation changes, not just at
+// the moment it was first created.
+let sellMapResizeTimer = null;
+window.addEventListener("resize", () => {
+  if (!sellMap) return;
+  clearTimeout(sellMapResizeTimer);
+  sellMapResizeTimer = setTimeout(() => sellMap.invalidateSize(), 150);
 });

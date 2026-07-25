@@ -86,6 +86,7 @@ const SETTINGS_ITEMS = [
   { icon: "shield-check", label: "Verification", hint: "", key: "verification" },
   { icon: "bell", label: "Notifications", hint: "Push, email & SMS alerts" },
   { icon: "credit-card", label: "Payment methods", hint: "Cards & payout details" },
+  { icon: "coins", label: "Currency", hint: "", key: "currency" },
   { icon: "shield-check", label: "Privacy & security", hint: "Password, 2FA" },
   { icon: "user-x", label: "Blocked users", hint: "", key: "blocked" },
   { icon: "circle-help", label: "Help & support", hint: "FAQs, contact us" },

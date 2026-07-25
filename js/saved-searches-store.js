@@ -89,9 +89,9 @@ function deleteSavedSearch(id) {
 function savedSearchSummary(s) {
   const parts = [];
   if (s.category && s.category !== "All categories") parts.push(s.category);
-  if (s.minPrice != null && s.maxPrice != null) parts.push(`$${s.minPrice} – $${s.maxPrice}`);
-  else if (s.minPrice != null) parts.push(`From $${s.minPrice}`);
-  else if (s.maxPrice != null) parts.push(`Under $${s.maxPrice}`);
+  if (s.minPrice != null && s.maxPrice != null) parts.push(`${formatPrice(s.minPrice)} – ${formatPrice(s.maxPrice)}`);
+  else if (s.minPrice != null) parts.push(`From ${formatPrice(s.minPrice)}`);
+  else if (s.maxPrice != null) parts.push(`Under ${formatPrice(s.maxPrice)}`);
   if (s.condition && s.condition !== "Any condition") parts.push(s.condition);
   if (s.location && s.location !== "All locations") parts.push(s.location);
   return parts.length ? parts.join(" • ") : "All listings";

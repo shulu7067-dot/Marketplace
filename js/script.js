@@ -197,3 +197,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // In case lucide loads after DOMContentLoaded (it's deferred), re-run icon creation.
 window.addEventListener("load", refreshIcons);
+
+window.addEventListener("marka:currency-changed", () => {
+  if (typeof renderAll === "function") renderAll();
+});

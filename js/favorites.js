@@ -167,3 +167,7 @@ document.addEventListener("DOMContentLoaded", () => {
   renderBottomNav("favorites");
   refreshIcons();
 });
+
+window.addEventListener("marka:currency-changed", () => {
+  if (typeof renderAll === "function") renderAll();
+});

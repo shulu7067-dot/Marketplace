@@ -52,7 +52,7 @@ function renderListingPreview(record) {
     <div class="promote-listing-body">
       <div class="promote-listing-title">${record.title}</div>
       <div class="promote-listing-meta">
-        <span class="promote-listing-price">${record.price}</span>
+        <span class="promote-listing-price">${formatPrice(record.price)}</span>
         <span>·</span>
         <span>${record.loc}</span>
       </div>
@@ -94,7 +94,7 @@ function planCardHTML(plan) {
         <span class="plan-radio-dot"><i data-lucide="check"></i></span>
       </div>
       <div class="plan-price-row">
-        <span class="plan-price">$${plan.price.toFixed(2)}</span>
+        <span class="plan-price">${formatPrice(plan.price)}</span>
         <span class="plan-duration">/ ${plan.durationDays} days</span>
       </div>
       <ul class="plan-features">
@@ -113,7 +113,7 @@ function renderSummary() {
   const plan = getPromotePlan(state.selectedPlan);
   if (!plan) return;
   document.getElementById("promoteSummaryLabel").textContent = `${plan.label} · ${plan.durationDays}-day boost`;
-  document.getElementById("promoteSummaryTotal").textContent = `$${plan.price.toFixed(2)}`;
+  document.getElementById("promoteSummaryTotal").textContent = formatPrice(plan.price);
 }
 
 function renderSuccess(promo) {
