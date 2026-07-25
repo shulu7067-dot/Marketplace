@@ -87,6 +87,7 @@ const SETTINGS_ITEMS = [
   { icon: "bell", label: "Notifications", hint: "Push, email & SMS alerts" },
   { icon: "credit-card", label: "Payment methods", hint: "Cards & payout details" },
   { icon: "shield-check", label: "Privacy & security", hint: "Password, 2FA" },
+  { icon: "user-x", label: "Blocked users", hint: "", key: "blocked" },
   { icon: "circle-help", label: "Help & support", hint: "FAQs, contact us" },
   { icon: "log-out", label: "Log out", hint: "", danger: true },
 ];

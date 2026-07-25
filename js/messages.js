@@ -75,7 +75,7 @@ function renderThreadList() {
             <span class="msg-thread-time">${time}</span>
           </div>
           <div class="msg-thread-listing">${escapeHTML(conv.listingTitle)}</div>
-          <div class="msg-thread-preview">${escapeHTML(preview)}</div>
+          <div class="msg-thread-preview">${isUserBlocked(conv.seller.name) ? `<span class="msg-thread-blocked-tag">Blocked</span>` : escapeHTML(preview)}</div>
         </div>
         ${conv.unread ? `<span class="msg-unread-badge">${conv.unread}</span>` : ""}
       </button>`;
@@ -136,6 +136,15 @@ function renderChatHeader(conv) {
   );
   document.getElementById("msgChatListingTitle").textContent = conv.listingTitle;
   document.getElementById("msgChatListingPrice").textContent = conv.listingPrice || "";
+
+  const blocked = isUserBlocked(conv.seller.name);
+  const blockBtn = document.getElementById("msgBlockBtn");
+  blockBtn.classList.toggle("is-blocked", blocked);
+  blockBtn.setAttribute("aria-label", blocked ? "Unblock user" : "Block user");
+  blockBtn.innerHTML = `<i data-lucide="${blocked ? "user-check" : "user-x"}"></i>`;
+
+  document.getElementById("msgBlockedBanner").style.display = blocked ? "flex" : "none";
+  document.getElementById("msgComposer").style.display = blocked ? "none" : "flex";
 }
 
 function renderPanel() {
@@ -208,6 +217,8 @@ function updateSendButtonState() {
 
 function handleSend() {
   if (!msgState.activeId) return;
+  const conv = getConversation(msgState.activeId);
+  if (conv && isUserBlocked(conv.seller.name)) return;
   const input = document.getElementById("msgInput");
   const text = input.value.trim();
   if (!text && !msgState.pendingImage) return;
@@ -229,6 +240,29 @@ function handleImageFile(file) {
     updateSendButtonState();
   };
   reader.readAsDataURL(file);
+}
+
+async function handleToggleBlockSeller() {
+  if (!msgState.activeId) return;
+  const conv = getConversation(msgState.activeId);
+  if (!conv) return;
+  const alreadyBlocked = isUserBlocked(conv.seller.name);
+  const confirmed = await confirmModal({
+    title: alreadyBlocked ? "Unblock this user?" : "Block this user?",
+    message: alreadyBlocked
+      ? `${conv.seller.name} will be able to message you again and their listings will show up again.`
+      : `You won't be able to send or receive messages from ${conv.seller.name}, and their listings will be hidden. You can undo this any time from Profile > Settings > Blocked users.`,
+    confirmLabel: alreadyBlocked ? "Unblock" : "Block",
+    danger: !alreadyBlocked,
+  });
+  if (!confirmed) return;
+
+  if (alreadyBlocked) unblockUser(conv.seller.name);
+  else blockUser(conv.seller);
+
+  renderThreadList();
+  renderPanel();
+  refreshIcons();
 }
 
 /* ------------------------------------- Init ---------------------------------------- */
@@ -253,6 +287,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("msgBackBtn").addEventListener("click", closeConversation);
+
+  document.getElementById("msgBlockBtn").addEventListener("click", handleToggleBlockSeller);
+  document.getElementById("msgUnblockBtn").addEventListener("click", handleToggleBlockSeller);
 
   document.getElementById("msgSearchInput").addEventListener("input", (e) => {
     msgState.search = e.target.value;
@@ -288,6 +325,11 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   window.addEventListener(MESSAGES_UPDATED_EVENT, () => {
+    renderThreadList();
+    if (msgState.activeId) renderPanel();
+  });
+
+  window.addEventListener(BLOCKED_USERS_UPDATED_EVENT, () => {
     renderThreadList();
     if (msgState.activeId) renderPanel();
   });

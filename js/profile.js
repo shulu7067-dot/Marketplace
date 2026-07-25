@@ -317,10 +317,16 @@ function renderSettings() {
   const list = document.getElementById("settingsList");
   list.innerHTML = SETTINGS_ITEMS.map((item) => {
     const isVerification = item.key === "verification";
+    const isBlocked = item.key === "blocked";
+    const blockedCount = isBlocked ? getBlockedUsers().length : 0;
     const hint = isVerification
       ? PROFILE.verified
         ? "You're a verified seller"
         : "Verify your email, phone & ID"
+      : isBlocked
+      ? blockedCount
+        ? `${blockedCount} blocked user${blockedCount === 1 ? "" : "s"}`
+        : "No blocked users"
       : item.hint;
     return `
     <button class="settings-item ${item.danger ? "settings-item--danger" : ""}" type="button" data-settings-key="${item.key || ""}">
@@ -599,12 +605,75 @@ function openVerificationModal() {
   });
 }
 
+function blockedUserRowHTML(user) {
+  return `
+    <div class="blocked-user-row">
+      <div class="seller-avatar review-avatar">${user.initials}</div>
+      <span class="blocked-user-name">${user.name}</span>
+      <button type="button" class="btn-secondary blocked-user-unblock" data-unblock-name="${user.name}">Unblock</button>
+    </div>`;
+}
+
+function openBlockedUsersModal() {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  document.body.appendChild(overlay);
+
+  function paint() {
+    const users = getBlockedUsers();
+    overlay.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <h2 class="modal-title">Blocked users</h2>
+          <button type="button" class="modal-close" aria-label="Close"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-note">Blocked users can't message or call you, and their listings are hidden from browse and search. Unblock anyone here to reverse it.</p>
+          ${
+            users.length
+              ? `<div class="blocked-user-list">${users.map(blockedUserRowHTML).join("")}</div>`
+              : `<p style="margin:0; font-size:13px; color:var(--text-tertiary);">You haven't blocked anyone.</p>`
+          }
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-primary" data-action="close">Close</button>
+        </div>
+      </div>`;
+    refreshIcons();
+  }
+  paint();
+  requestAnimationFrame(() => overlay.classList.add("open"));
+
+  function cleanup() {
+    overlay.classList.remove("open");
+    setTimeout(() => overlay.remove(), 200);
+  }
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay || e.target.closest(".modal-close") || e.target.closest('[data-action="close"]')) {
+      return cleanup();
+    }
+    const unblockBtn = e.target.closest("[data-unblock-name]");
+    if (unblockBtn) {
+      unblockUser(unblockBtn.dataset.unblockName);
+      renderSettings();
+      refreshIcons();
+      paint();
+    }
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   applyProfileOverrides();
   renderAll();
 
   document.getElementById("editProfileBtn").addEventListener("click", () => {
     openEditProfileModal();
+  });
+
+  window.addEventListener(BLOCKED_USERS_UPDATED_EVENT, () => {
+    renderSettings();
+    refreshIcons();
   });
 
   document.addEventListener("click", (e) => {
@@ -659,6 +728,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const settingsKeyBtn = e.target.closest('[data-settings-key="verification"]');
     if (settingsKeyBtn) {
       openVerificationModal();
+      return;
+    }
+
+    const blockedSettingsBtn = e.target.closest('[data-settings-key="blocked"]');
+    if (blockedSettingsBtn) {
+      openBlockedUsersModal();
       return;
     }
 

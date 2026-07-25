@@ -59,6 +59,7 @@ function getFilteredListings() {
     if (state.maxPrice !== null && l.priceValue > state.maxPrice) return false;
     if (state.condition !== "Any condition" && l.condition !== state.condition) return false;
     if (state.location !== "All locations" && l.loc !== state.location) return false;
+    if (isUserBlocked(l.sellerName)) return false;
     return true;
   });
 }
@@ -220,7 +221,17 @@ function renderPagination(totalPages) {
 
 function renderRecentlyViewed() {
   const row = document.getElementById("recentRow");
-  const items = RECENTLY_VIEWED_IDS.map((id) => BROWSE_LISTINGS.find((l) => l.id === id)).filter(Boolean);
+  const section = document.getElementById("recentSection");
+  const items = getRecentlyViewedIds()
+    .map((id) => BROWSE_LISTINGS.find((l) => l.id === id))
+    .filter((l) => l && !isUserBlocked(l.sellerName));
+
+  if (section) section.hidden = items.length === 0;
+  if (!items.length) {
+    row.innerHTML = "";
+    return;
+  }
+
   row.innerHTML = items
     .map(
       (item) => `
@@ -273,6 +284,11 @@ function goToPage(p) {
   renderAll();
   document.getElementById("resultsSection").scrollIntoView({ behavior: "smooth", block: "start" });
 }
+
+window.addEventListener(BLOCKED_USERS_UPDATED_EVENT, () => {
+  renderAll();
+  renderRecentlyViewed();
+});
 
 document.addEventListener("DOMContentLoaded", () => {
   renderAll();

@@ -44,7 +44,7 @@ function mediaStyle(img) {
 }
 
 function getSimilarListings(record) {
-  const all = Object.values(LISTING_DETAILS).filter((l) => l.id !== record.id);
+  const all = Object.values(LISTING_DETAILS).filter((l) => l.id !== record.id && !isUserBlocked(l.seller.name));
   const sameTag = all.filter((l) => l.tag === record.tag);
   const rest = all.filter((l) => l.tag !== record.tag);
   return [...sameTag, ...rest].slice(0, 4);
@@ -92,6 +92,7 @@ function renderSeller(record) {
       <div class="seller-name-row">
         <span class="seller-name">${s.name}</span>
         ${s.verified ? `<span class="verified-tag"><i data-lucide="badge-check"></i> Verified</span>` : ""}
+        ${!record.isOwn && isUserBlocked(s.name) ? `<span class="blocked-tag"><i data-lucide="user-x"></i> Blocked</span>` : ""}
       </div>
       <div class="seller-meta">
         <span class="seller-rating"><i data-lucide="star"></i> ${s.rating.toFixed(1)}</span>
@@ -122,12 +123,15 @@ function renderActionArea(record) {
     return;
   }
 
+  const blocked = isUserBlocked(record.seller.name);
+
   wrap.innerHTML = `
+    ${blocked ? `<div class="owner-banner owner-banner--warning"><i data-lucide="user-x"></i> You've blocked ${record.seller.name}. Unblock them to message or call.</div>` : ""}
     <div class="action-buttons">
-      <a class="btn-primary" id="messageSellerBtn" href="messages.html">
+      <a class="btn-primary ${blocked ? "btn-disabled" : ""}" id="messageSellerBtn" href="messages.html" ${blocked ? 'aria-disabled="true" tabindex="-1"' : ""}>
         <i data-lucide="message-circle"></i> Message Seller
       </a>
-      <a class="btn-secondary" id="callSellerBtn" href="tel:${record.seller.phone.replace(/[^+\d]/g, "")}">
+      <a class="btn-secondary ${blocked ? "btn-disabled" : ""}" id="callSellerBtn" href="tel:${record.seller.phone.replace(/[^+\d]/g, "")}" ${blocked ? 'aria-disabled="true" tabindex="-1"' : ""}>
         <i data-lucide="phone"></i> Call Seller
       </a>
     </div>
@@ -136,7 +140,12 @@ function renderActionArea(record) {
     </button>
     <button class="btn-share btn-report" id="reportListingBtn" type="button">
       <i data-lucide="flag"></i> Report listing
+    </button>
+    <button class="btn-share ${blocked ? "" : "btn-report"}" id="blockSellerBtn" type="button">
+      <i data-lucide="${blocked ? "user-check" : "user-x"}"></i> ${blocked ? "Unblock user" : "Block user"}
     </button>`;
+
+  if (blocked) return;
 
   // Reuse an existing thread for this listing, or open a new one, then send
   // straight to it — same idea as js/listings-store.js's findOrCreate pattern.
@@ -293,11 +302,40 @@ async function handleDeleteOwnListing(record) {
   window.location.href = "profile.html";
 }
 
+async function handleToggleBlockSeller(record) {
+  const seller = record.seller;
+  const alreadyBlocked = isUserBlocked(seller.name);
+  const confirmed = await confirmModal({
+    title: alreadyBlocked ? "Unblock this user?" : "Block this user?",
+    message: alreadyBlocked
+      ? `${seller.name} will be able to message you and their listings will show up again.`
+      : `You won't be able to message or call ${seller.name}, and their listings will be hidden from browse and search. You can undo this any time from Profile > Settings > Blocked users.`,
+    confirmLabel: alreadyBlocked ? "Unblock" : "Block",
+    danger: !alreadyBlocked,
+  });
+  if (!confirmed) return;
+
+  if (alreadyBlocked) unblockUser(seller.name);
+  else blockUser(seller);
+
+  renderSeller(record);
+  renderActionArea(record);
+  renderSimilar(record);
+  refreshIcons();
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const record = getRecordForId(getRequestedId());
   renderAll(record);
+  if (!record.isOwn && typeof recordListingView === "function") recordListingView(record.id);
 
   document.addEventListener("click", (e) => {
+    const disabledAction = e.target.closest(".btn-disabled");
+    if (disabledAction) {
+      e.preventDefault();
+      return;
+    }
+
     const thumb = e.target.closest("[data-thumb-index]");
     if (thumb) {
       state.activeImage = Number(thumb.dataset.thumbIndex);
@@ -326,6 +364,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (e.target.closest("#reportListingBtn")) {
       openReportModal();
+      return;
+    }
+
+    if (e.target.closest("#blockSellerBtn")) {
+      handleToggleBlockSeller(record);
       return;
     }
 

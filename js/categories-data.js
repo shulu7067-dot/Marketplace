@@ -88,6 +88,7 @@ function getCategoryListings(label, subcategory) {
   return Object.values(LISTING_DETAILS)
     .filter((l) => l.tag === label)
     .filter((l) => !subcategory || subcategory === "All" || LISTING_SUBCATEGORY[l.id] === subcategory)
+    .filter((l) => typeof isUserBlocked !== "function" || !isUserBlocked(l.seller.name))
     .map((l) => ({
       id: l.id,
       title: l.title,

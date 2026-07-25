@@ -48,6 +48,7 @@ function buildBrowseListings() {
     popularity: Math.round(l.seller.rating * l.seller.deals),
     verified: l.seller.verified,
     grad: l.grad,
+    sellerName: l.seller.name,
   }));
 }
 

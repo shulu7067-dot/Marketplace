@@ -168,6 +168,8 @@ document.addEventListener("DOMContentLoaded", () => {
       window.location.href = `listing.html?id=${card.dataset.listingId}`;
     }
   });
+
+  window.addEventListener(BLOCKED_USERS_UPDATED_EVENT, renderResults);
 });
 
 window.addEventListener("load", refreshIcons);
