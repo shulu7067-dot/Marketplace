@@ -17,6 +17,7 @@
 
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/listing.css" />
+    <link rel="stylesheet" href="css/sell.css" />
     <link rel="stylesheet" href="css/profile.css" />
     <link rel="stylesheet" href="css/modal.css" />
   </head>
@@ -68,13 +69,24 @@
 
         <!-- Profile header -->
         <section class="profile-header">
-          <div class="profile-cover"></div>
+          <div class="profile-cover" id="profileCover">
+            <button type="button" class="cover-photo-btn" id="coverPhotoBtn" aria-label="Change cover photo">
+              <i data-lucide="camera"></i>
+            </button>
+          </div>
           <div class="profile-identity">
-            <div class="profile-avatar" id="profileAvatar">JD</div>
+            <div class="profile-avatar-wrap">
+              <div class="profile-avatar" id="profileAvatar">JD</div>
+              <button type="button" class="avatar-photo-btn" id="avatarPhotoBtn" aria-label="Change profile photo">
+                <i data-lucide="camera"></i>
+              </button>
+            </div>
             <button class="profile-edit-btn" id="editProfileBtn">
               <i data-lucide="pencil"></i> Edit profile
             </button>
           </div>
+          <input type="file" id="avatarFileInput" accept="image/*" hidden />
+          <input type="file" id="coverFileInput" accept="image/*" hidden />
           <div class="profile-name-row">
             <h1 class="profile-name" id="profileName"></h1>
             <button type="button" class="verified-tag" id="profileVerified"></button>
