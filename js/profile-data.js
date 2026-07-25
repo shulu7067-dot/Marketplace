@@ -12,6 +12,7 @@ const PROFILE = {
   loc: "Riverside, NY",
   memberSince: "Member since 2021",
   email: "jordan.diaz@example.com",
+  phone: "+1 (555) 019-2834",
   rating: 4.9,
   verified: true,
   // Which of the three checks make up the verified badge. All true is what
@@ -20,6 +21,15 @@ const PROFILE = {
   verificationSteps: { email: true, phone: true, id: true },
   bio: "Trading bikes, home goods, and the occasional restored classic since 2021. I reply fast and always meet in public spots — check my reviews below.",
   avatarGrad: null, // [color1, color2] once the user picks a swatch in Edit profile; null = default CSS gradient
+  avatarImage: null, // data URL once the user uploads a profile photo in Edit profile; null = show initials/gradient
+  coverImage: null, // data URL once the user uploads a cover photo in Edit profile; null = default gradient banner
+  notificationPrefs: { push: true, email: true, sms: false },
+  twoFactorEnabled: false,
+  paymentMethods: [
+    { id: "pm1", brand: "Visa", last4: "4242", expiry: "09/27" },
+    { id: "pm2", brand: "Mastercard", last4: "8831", expiry: "02/26" },
+  ],
+  payoutMethod: "Bank transfer — ****6210",
   stats: [
     { label: "Active listings", value: "6", icon: "layout-grid" },
     { label: "Items sold", value: "48", icon: "check-circle" },
@@ -82,13 +92,13 @@ const PROFILE_REVIEWS = [
 ];
 
 const SETTINGS_ITEMS = [
-  { icon: "user", label: "Personal information", hint: "Name, email, phone" },
+  { icon: "user", label: "Personal information", hint: "Name, email, phone", key: "personal" },
   { icon: "shield-check", label: "Verification", hint: "", key: "verification" },
-  { icon: "bell", label: "Notifications", hint: "Push, email & SMS alerts" },
-  { icon: "credit-card", label: "Payment methods", hint: "Cards & payout details" },
+  { icon: "bell", label: "Notifications", hint: "Push, email & SMS alerts", key: "notifications" },
+  { icon: "credit-card", label: "Payment methods", hint: "Cards & payout details", key: "payment" },
   { icon: "coins", label: "Currency", hint: "", key: "currency" },
-  { icon: "shield-check", label: "Privacy & security", hint: "Password, 2FA" },
+  { icon: "shield-check", label: "Privacy & security", hint: "Password, 2FA", key: "privacy" },
   { icon: "user-x", label: "Blocked users", hint: "", key: "blocked" },
-  { icon: "circle-help", label: "Help & support", hint: "FAQs, contact us" },
+  { icon: "circle-help", label: "Help & support", hint: "FAQs, contact us", key: "help" },
   { icon: "log-out", label: "Log out", hint: "", danger: true },
 ];

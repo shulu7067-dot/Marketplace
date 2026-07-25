@@ -48,8 +48,44 @@ function applyProfileOverrides() {
   if (o.loc) PROFILE.loc = o.loc;
   if (typeof o.bio === "string") PROFILE.bio = o.bio;
   if (o.avatarGrad) PROFILE.avatarGrad = o.avatarGrad;
+  if (typeof o.avatarImage === "string" || o.avatarImage === null) PROFILE.avatarImage = o.avatarImage;
+  if (typeof o.coverImage === "string" || o.coverImage === null) PROFILE.coverImage = o.coverImage;
+  if (typeof o.email === "string") PROFILE.email = o.email;
+  if (typeof o.phone === "string") PROFILE.phone = o.phone;
+  if (o.notificationPrefs) PROFILE.notificationPrefs = { ...PROFILE.notificationPrefs, ...o.notificationPrefs };
+  if (typeof o.twoFactorEnabled === "boolean") PROFILE.twoFactorEnabled = o.twoFactorEnabled;
+  if (Array.isArray(o.paymentMethods)) PROFILE.paymentMethods = o.paymentMethods;
   if (o.verificationSteps) PROFILE.verificationSteps = { ...PROFILE.verificationSteps, ...o.verificationSteps };
   if (typeof o.verified === "boolean") PROFILE.verified = o.verified;
+}
+
+/* ------------------------------- Image helper ---------------------------------
+   Reads a File from an <input type="file">, downsizes it on a canvas so it's
+   safe for localStorage (this demo has no backend/object storage), and
+   resolves to a compressed JPEG data URL. maxDim keeps avatars small and
+   covers a bit larger since they're wider. */
+function fileToCompressedDataURL(file, maxDim = 600, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type.startsWith("image/")) return reject(new Error("Not an image"));
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Could not read file"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Could not decode image"));
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function readHelpfulSet() {
@@ -83,10 +119,22 @@ function initialsFromName(name) {
 /* --------------------------------- Renderers ---------------------------------- */
 function renderHeader() {
   const avatarEl = document.getElementById("profileAvatar");
-  avatarEl.textContent = PROFILE.initials;
-  avatarEl.style.background = PROFILE.avatarGrad
-    ? `linear-gradient(135deg, ${PROFILE.avatarGrad[0]}, ${PROFILE.avatarGrad[1]})`
-    : "";
+  if (PROFILE.avatarImage) {
+    avatarEl.textContent = "";
+    avatarEl.style.background = `center / cover no-repeat url("${PROFILE.avatarImage}")`;
+  } else {
+    avatarEl.textContent = PROFILE.initials;
+    avatarEl.style.background = PROFILE.avatarGrad
+      ? `linear-gradient(135deg, ${PROFILE.avatarGrad[0]}, ${PROFILE.avatarGrad[1]})`
+      : "";
+  }
+
+  const coverEl = document.getElementById("profileCover");
+  if (coverEl) {
+    coverEl.style.backgroundImage = PROFILE.coverImage ? `url("${PROFILE.coverImage}")` : "";
+    coverEl.classList.toggle("profile-cover--photo", !!PROFILE.coverImage);
+  }
+
   document.getElementById("profileName").textContent = PROFILE.name;
 
   const verifiedBtn = document.getElementById("profileVerified");
@@ -363,6 +411,10 @@ function renderSettings() {
     const isVerification = item.key === "verification";
     const isBlocked = item.key === "blocked";
     const isCurrency = item.key === "currency";
+    const isPersonal = item.key === "personal";
+    const isNotifications = item.key === "notifications";
+    const isPayment = item.key === "payment";
+    const isPrivacy = item.key === "privacy";
     const blockedCount = isBlocked ? getBlockedUsers().length : 0;
     const hint = isVerification
       ? PROFILE.verified
@@ -378,6 +430,19 @@ function renderSettings() {
           const info = CURRENCIES[code];
           return info ? `${code} — ${info.name}` : code;
         })()
+      : isPersonal
+      ? PROFILE.email
+      : isNotifications
+      ? (() => {
+          const on = Object.values(PROFILE.notificationPrefs).filter(Boolean).length;
+          return `${on} of 3 alert types on`;
+        })()
+      : isPayment
+      ? `${PROFILE.paymentMethods.length} card${PROFILE.paymentMethods.length === 1 ? "" : "s"} saved`
+      : isPrivacy
+      ? PROFILE.twoFactorEnabled
+        ? "Password · 2FA on"
+        : "Password · 2FA off"
       : item.hint;
     return `
     <button class="settings-item ${item.danger ? "settings-item--danger" : ""}" type="button" data-settings-key="${item.key || ""}">
@@ -486,18 +551,59 @@ function avatarSwatchesHTML(selected) {
   }).join("");
 }
 
+// Renders the circular avatar preview inside the modal — a photo if one's
+// staged/saved, otherwise the initials-on-gradient look used across the site.
+function avatarPreviewHTML(image, grad, initials) {
+  const bg = image
+    ? `center / cover no-repeat url('${image}')`
+    : grad
+    ? `linear-gradient(135deg, ${grad[0]}, ${grad[1]})`
+    : "";
+  return `<div class="modal-avatar-preview" style="background:${bg}">${image ? "" : initials}</div>`;
+}
+
+function coverPreviewHTML(image) {
+  return `<div class="modal-cover-preview" style="${image ? `background-image:url('${image}')` : ""}"></div>`;
+}
+
 function openEditProfileModal() {
   let chosenGrad = PROFILE.avatarGrad;
+  let chosenAvatarImage = PROFILE.avatarImage;
+  let chosenCoverImage = PROFILE.coverImage;
 
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
-  overlay.innerHTML = `
+
+  function paint() {
+    overlay.innerHTML = `
     <div class="modal" role="dialog" aria-modal="true">
       <div class="modal-head">
         <h2 class="modal-title">Edit profile</h2>
         <button type="button" class="modal-close" aria-label="Close"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
+        <span class="field-label" style="margin-top:0;">Cover photo</span>
+        ${coverPreviewHTML(chosenCoverImage)}
+        <div class="photo-btn-row">
+          <button type="button" class="btn-secondary photo-btn" data-action="pick-cover"><i data-lucide="image-up"></i> ${chosenCoverImage ? "Change cover" : "Upload cover"}</button>
+          ${chosenCoverImage ? `<button type="button" class="btn-secondary photo-btn" data-action="remove-cover"><i data-lucide="trash-2"></i> Remove</button>` : ""}
+        </div>
+
+        <span class="field-label">Profile photo</span>
+        <div class="modal-avatar-row">
+          ${avatarPreviewHTML(chosenAvatarImage, chosenGrad, PROFILE.initials)}
+          <div class="photo-btn-col">
+            <button type="button" class="btn-secondary photo-btn" data-action="pick-avatar"><i data-lucide="image-up"></i> ${chosenAvatarImage ? "Change photo" : "Upload photo"}</button>
+            ${chosenAvatarImage ? `<button type="button" class="btn-secondary photo-btn" data-action="remove-avatar"><i data-lucide="trash-2"></i> Remove</button>` : ""}
+          </div>
+        </div>
+        ${
+          chosenAvatarImage
+            ? ""
+            : `<span class="field-label">Avatar color</span>
+        <div class="avatar-swatch-row" id="avatarSwatchRow">${avatarSwatchesHTML(chosenGrad)}</div>`
+        }
+
         <label class="field-label" for="editName">Name</label>
         <input class="form-input" id="editName" type="text" maxlength="60" value="${PROFILE.name}" />
 
@@ -507,33 +613,89 @@ function openEditProfileModal() {
         <label class="field-label" for="editBio">Bio</label>
         <textarea class="field-textarea" id="editBio" maxlength="280">${PROFILE.bio}</textarea>
         <span class="field-char-count" id="editBioCount"></span>
-
-        <span class="field-label">Avatar color</span>
-        <div class="avatar-swatch-row" id="avatarSwatchRow">${avatarSwatchesHTML(chosenGrad)}</div>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn-secondary" data-action="cancel">Cancel</button>
         <button type="button" class="btn-primary" data-action="save">Save changes</button>
       </div>
-    </div>`;
+    </div>
+    <input type="file" id="modalAvatarInput" accept="image/*" hidden />
+    <input type="file" id="modalCoverInput" accept="image/*" hidden />`;
+    refreshIcons();
+
+    const bioField = overlay.querySelector("#editBio");
+    const bioCount = overlay.querySelector("#editBioCount");
+    const updateBioCount = () => (bioCount.textContent = `${bioField.value.length}/280`);
+    updateBioCount();
+    bioField.addEventListener("input", updateBioCount);
+
+    // Preserve in-progress edits (name/loc/bio) across re-paints triggered by
+    // photo changes, so uploading a picture doesn't wipe out typed text.
+    if (overlay.dataset.draftName !== undefined) overlay.querySelector("#editName").value = overlay.dataset.draftName;
+    if (overlay.dataset.draftLoc !== undefined) overlay.querySelector("#editLoc").value = overlay.dataset.draftLoc;
+    if (overlay.dataset.draftBio !== undefined) {
+      bioField.value = overlay.dataset.draftBio;
+      updateBioCount();
+    }
+  }
+
+  paint();
   document.body.appendChild(overlay);
-  refreshIcons();
   requestAnimationFrame(() => overlay.classList.add("open"));
 
-  const bioField = overlay.querySelector("#editBio");
-  const bioCount = overlay.querySelector("#editBioCount");
-  const updateBioCount = () => (bioCount.textContent = `${bioField.value.length}/280`);
-  updateBioCount();
-  bioField.addEventListener("input", updateBioCount);
+  function saveDraftFields() {
+    overlay.dataset.draftName = overlay.querySelector("#editName").value;
+    overlay.dataset.draftLoc = overlay.querySelector("#editLoc").value;
+    overlay.dataset.draftBio = overlay.querySelector("#editBio").value;
+  }
 
   function cleanup() {
     overlay.classList.remove("open");
     setTimeout(() => overlay.remove(), 200);
   }
 
+  overlay.addEventListener("change", async (e) => {
+    if (e.target.id === "modalAvatarInput") {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        chosenAvatarImage = await fileToCompressedDataURL(file, 480, 0.85);
+        saveDraftFields();
+        paint();
+      } catch {
+        // Unreadable/unsupported file — ignore quietly in this demo.
+      }
+    }
+    if (e.target.id === "modalCoverInput") {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        chosenCoverImage = await fileToCompressedDataURL(file, 1200, 0.8);
+        saveDraftFields();
+        paint();
+      } catch {
+        // Unreadable/unsupported file — ignore quietly in this demo.
+      }
+    }
+  });
+
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay || e.target.closest(".modal-close") || e.target.closest('[data-action="cancel"]')) {
       return cleanup();
+    }
+
+    if (e.target.closest('[data-action="pick-avatar"]')) return overlay.querySelector("#modalAvatarInput").click();
+    if (e.target.closest('[data-action="pick-cover"]')) return overlay.querySelector("#modalCoverInput").click();
+
+    if (e.target.closest('[data-action="remove-avatar"]')) {
+      chosenAvatarImage = null;
+      saveDraftFields();
+      return paint();
+    }
+    if (e.target.closest('[data-action="remove-cover"]')) {
+      chosenCoverImage = null;
+      saveDraftFields();
+      return paint();
     }
 
     const swatch = e.target.closest("[data-swatch-index]");
@@ -542,19 +704,25 @@ function openEditProfileModal() {
       overlay.querySelectorAll(".avatar-swatch").forEach((el, i) => {
         el.classList.toggle("avatar-swatch--active", i === Number(swatch.dataset.swatchIndex));
       });
+      const preview = overlay.querySelector(".modal-avatar-preview");
+      if (preview && !chosenAvatarImage) {
+        preview.style.background = `linear-gradient(135deg, ${chosenGrad[0]}, ${chosenGrad[1]})`;
+      }
       return;
     }
 
     if (e.target.closest('[data-action="save"]')) {
       const name = overlay.querySelector("#editName").value.trim() || PROFILE.name;
       const loc = overlay.querySelector("#editLoc").value.trim() || PROFILE.loc;
-      const bio = bioField.value.trim();
+      const bio = overlay.querySelector("#editBio").value.trim();
 
       PROFILE.name = name;
       PROFILE.initials = initialsFromName(name);
       PROFILE.loc = loc;
       PROFILE.bio = bio;
       PROFILE.avatarGrad = chosenGrad;
+      PROFILE.avatarImage = chosenAvatarImage;
+      PROFILE.coverImage = chosenCoverImage;
 
       writeProfileOverrides({
         name,
@@ -562,6 +730,8 @@ function openEditProfileModal() {
         loc,
         bio,
         avatarGrad: chosenGrad,
+        avatarImage: chosenAvatarImage,
+        coverImage: chosenCoverImage,
       });
 
       renderHeader();
@@ -764,12 +934,402 @@ function openBlockedUsersModal() {
   });
 }
 
+/* --------------------------- Personal information modal ------------------------ */
+function openPersonalInfoModal() {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h2 class="modal-title">Personal information</h2>
+        <button type="button" class="modal-close" aria-label="Close"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label" for="piName" style="margin-top:0;">Full name</label>
+        <input class="form-input" id="piName" type="text" maxlength="60" value="${PROFILE.name}" />
+
+        <label class="field-label" for="piEmail">Email</label>
+        <input class="form-input" id="piEmail" type="email" value="${PROFILE.email}" />
+        <p class="field-error" id="piEmailError" hidden>Enter a valid email address.</p>
+
+        <label class="field-label" for="piPhone">Phone number</label>
+        <input class="form-input" id="piPhone" type="tel" value="${PROFILE.phone || ""}" />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" data-action="cancel">Cancel</button>
+        <button type="button" class="btn-primary" data-action="save">Save changes</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  refreshIcons();
+  requestAnimationFrame(() => overlay.classList.add("open"));
+
+  function cleanup() {
+    overlay.classList.remove("open");
+    setTimeout(() => overlay.remove(), 200);
+  }
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay || e.target.closest(".modal-close") || e.target.closest('[data-action="cancel"]')) {
+      return cleanup();
+    }
+    if (e.target.closest('[data-action="save"]')) {
+      const name = overlay.querySelector("#piName").value.trim() || PROFILE.name;
+      const email = overlay.querySelector("#piEmail").value.trim();
+      const phone = overlay.querySelector("#piPhone").value.trim();
+      const emailError = overlay.querySelector("#piEmailError");
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        emailError.hidden = false;
+        return;
+      }
+      emailError.hidden = true;
+
+      PROFILE.name = name;
+      PROFILE.initials = initialsFromName(name);
+      PROFILE.email = email;
+      PROFILE.phone = phone;
+
+      writeProfileOverrides({ name, initials: PROFILE.initials, email, phone });
+
+      renderHeader();
+      renderSettings();
+      refreshIcons();
+      cleanup();
+    }
+  });
+}
+
+/* ------------------------------- Notifications modal ---------------------------- */
+function openNotificationsModal() {
+  let prefs = { ...PROFILE.notificationPrefs };
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+
+  const rows = [
+    { key: "push", label: "Push notifications", desc: "New messages, offers & listing updates" },
+    { key: "email", label: "Email alerts", desc: "Weekly digest and account activity" },
+    { key: "sms", label: "SMS alerts", desc: "Time-sensitive buyer/seller texts" },
+  ];
+
+  overlay.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h2 class="modal-title">Notifications</h2>
+        <button type="button" class="modal-close" aria-label="Close"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        ${rows
+          .map(
+            (r) => `
+        <div class="toggle-row">
+          <div class="toggle-row-text">
+            <span class="toggle-row-label">${r.label}</span>
+            <span class="toggle-row-desc">${r.desc}</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" data-pref-key="${r.key}" ${prefs[r.key] ? "checked" : ""} />
+            <span class="switch-track"></span>
+          </label>
+        </div>`
+          )
+          .join("")}
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" data-action="cancel">Cancel</button>
+        <button type="button" class="btn-primary" data-action="save">Save changes</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  refreshIcons();
+  requestAnimationFrame(() => overlay.classList.add("open"));
+
+  function cleanup() {
+    overlay.classList.remove("open");
+    setTimeout(() => overlay.remove(), 200);
+  }
+
+  overlay.addEventListener("change", (e) => {
+    const box = e.target.closest("[data-pref-key]");
+    if (box) prefs[box.dataset.prefKey] = box.checked;
+  });
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay || e.target.closest(".modal-close") || e.target.closest('[data-action="cancel"]')) {
+      return cleanup();
+    }
+    if (e.target.closest('[data-action="save"]')) {
+      PROFILE.notificationPrefs = prefs;
+      writeProfileOverrides({ notificationPrefs: prefs });
+      renderSettings();
+      refreshIcons();
+      cleanup();
+    }
+  });
+}
+
+/* ------------------------------ Payment methods modal --------------------------- */
+function paymentCardRowHTML(card) {
+  return `
+    <div class="payment-card-row">
+      <span class="payment-card-icon"><i data-lucide="credit-card"></i></span>
+      <span class="payment-card-text">
+        <span class="payment-card-brand">${card.brand} •••• ${card.last4}</span>
+        <span class="payment-card-expiry">Expires ${card.expiry}</span>
+      </span>
+      <button type="button" class="payment-card-remove" data-remove-card="${card.id}" aria-label="Remove card"><i data-lucide="trash-2"></i></button>
+    </div>`;
+}
+
+function detectCardBrand(number) {
+  if (/^4/.test(number)) return "Visa";
+  if (/^5/.test(number)) return "Mastercard";
+  if (/^3/.test(number)) return "Amex";
+  return "Card";
+}
+
+function openPaymentMethodsModal() {
+  let cards = PROFILE.paymentMethods.map((c) => ({ ...c }));
+  let showAddForm = false;
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  document.body.appendChild(overlay);
+
+  function paint() {
+    overlay.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <h2 class="modal-title">Payment methods</h2>
+          <button type="button" class="modal-close" aria-label="Close"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+          ${
+            cards.length
+              ? cards.map(paymentCardRowHTML).join("")
+              : `<p style="margin:0 0 10px; font-size:13px; color:var(--text-tertiary);">No cards saved yet.</p>`
+          }
+          ${
+            showAddForm
+              ? `<div class="add-card-form">
+                  <input class="form-input" id="pmNumber" inputmode="numeric" maxlength="19" placeholder="Card number" />
+                  <div class="add-card-form-row">
+                    <input class="form-input" id="pmExpiry" maxlength="5" placeholder="MM/YY" />
+                    <input class="form-input" id="pmCvc" maxlength="4" inputmode="numeric" placeholder="CVC" />
+                  </div>
+                  <p class="field-error" id="pmError" hidden>Enter a valid card number and expiry (MM/YY).</p>
+                  <button type="button" class="btn-primary" data-action="confirm-add">Add card</button>
+                </div>`
+              : `<button type="button" class="btn-secondary photo-btn" style="margin-top:4px; width:100%;" data-action="show-add"><i data-lucide="plus"></i> Add a card</button>`
+          }
+          <span class="field-label">Payout method</span>
+          <div class="payout-row">
+            <span class="payout-row-label">Where sold-item payouts land</span>
+            <span class="payout-row-value">${PROFILE.payoutMethod}</span>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-primary" data-action="close">Done</button>
+        </div>
+      </div>`;
+    refreshIcons();
+  }
+  paint();
+  requestAnimationFrame(() => overlay.classList.add("open"));
+
+  function cleanup() {
+    overlay.classList.remove("open");
+    setTimeout(() => overlay.remove(), 200);
+  }
+
+  function commit() {
+    PROFILE.paymentMethods = cards;
+    writeProfileOverrides({ paymentMethods: cards });
+    renderSettings();
+    refreshIcons();
+  }
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay || e.target.closest(".modal-close") || e.target.closest('[data-action="close"]')) {
+      commit();
+      return cleanup();
+    }
+
+    const removeBtn = e.target.closest("[data-remove-card]");
+    if (removeBtn) {
+      cards = cards.filter((c) => c.id !== removeBtn.dataset.removeCard);
+      commit();
+      return paint();
+    }
+
+    if (e.target.closest('[data-action="show-add"]')) {
+      showAddForm = true;
+      return paint();
+    }
+
+    if (e.target.closest('[data-action="confirm-add"]')) {
+      const number = overlay.querySelector("#pmNumber").value.replace(/\D/g, "");
+      const expiry = overlay.querySelector("#pmExpiry").value.trim();
+      const errEl = overlay.querySelector("#pmError");
+      const validExpiry = /^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry);
+
+      if (number.length < 12 || !validExpiry) {
+        errEl.hidden = false;
+        return;
+      }
+
+      cards.push({
+        id: `pm${Date.now()}`,
+        brand: detectCardBrand(number),
+        last4: number.slice(-4),
+        expiry,
+      });
+      showAddForm = false;
+      commit();
+      paint();
+    }
+  });
+}
+
+/* ----------------------------- Privacy & security modal -------------------------- */
+function openPrivacyModal() {
+  let twoFactor = PROFILE.twoFactorEnabled;
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+
+  function paint() {
+    overlay.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <h2 class="modal-title">Privacy & security</h2>
+          <button type="button" class="modal-close" aria-label="Close"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+          <label class="field-label" for="pwCurrent" style="margin-top:0;">Current password</label>
+          <input class="form-input" id="pwCurrent" type="password" autocomplete="current-password" placeholder="••••••••" />
+
+          <label class="field-label" for="pwNew">New password</label>
+          <input class="form-input" id="pwNew" type="password" autocomplete="new-password" placeholder="At least 8 characters" />
+
+          <label class="field-label" for="pwConfirm">Confirm new password</label>
+          <input class="form-input" id="pwConfirm" type="password" autocomplete="new-password" placeholder="••••••••" />
+          <p class="field-error" id="pwError" hidden></p>
+          <p class="settings-form-note" id="pwSuccess" hidden>Password updated.</p>
+
+          <div class="toggle-row" style="margin-top:16px;">
+            <div class="toggle-row-text">
+              <span class="toggle-row-label">Two-factor authentication</span>
+              <span class="toggle-row-desc">Require a code at login in addition to your password</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="twoFactorToggle" ${twoFactor ? "checked" : ""} />
+              <span class="switch-track"></span>
+            </label>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" data-action="cancel">Close</button>
+          <button type="button" class="btn-primary" data-action="save">Save changes</button>
+        </div>
+      </div>`;
+    refreshIcons();
+  }
+  paint();
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add("open"));
+
+  function cleanup() {
+    overlay.classList.remove("open");
+    setTimeout(() => overlay.remove(), 200);
+  }
+
+  overlay.addEventListener("change", (e) => {
+    if (e.target.id === "twoFactorToggle") twoFactor = e.target.checked;
+  });
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay || e.target.closest(".modal-close") || e.target.closest('[data-action="cancel"]')) {
+      return cleanup();
+    }
+    if (e.target.closest('[data-action="save"]')) {
+      const current = overlay.querySelector("#pwCurrent").value;
+      const next = overlay.querySelector("#pwNew").value;
+      const confirm = overlay.querySelector("#pwConfirm").value;
+      const errEl = overlay.querySelector("#pwError");
+      const successEl = overlay.querySelector("#pwSuccess");
+
+      const wantsPasswordChange = current || next || confirm;
+      if (wantsPasswordChange) {
+        if (next.length < 8) {
+          errEl.textContent = "New password must be at least 8 characters.";
+          errEl.hidden = false;
+          successEl.hidden = true;
+          return;
+        }
+        if (next !== confirm) {
+          errEl.textContent = "New password and confirmation don't match.";
+          errEl.hidden = false;
+          successEl.hidden = true;
+          return;
+        }
+        errEl.hidden = true;
+        successEl.hidden = false;
+        overlay.querySelector("#pwCurrent").value = "";
+        overlay.querySelector("#pwNew").value = "";
+        overlay.querySelector("#pwConfirm").value = "";
+      }
+
+      PROFILE.twoFactorEnabled = twoFactor;
+      writeProfileOverrides({ twoFactorEnabled: twoFactor });
+      renderSettings();
+      refreshIcons();
+
+      if (!wantsPasswordChange) cleanup();
+    }
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   applyProfileOverrides();
   renderAll();
 
   document.getElementById("editProfileBtn").addEventListener("click", () => {
     openEditProfileModal();
+  });
+
+  const avatarFileInput = document.getElementById("avatarFileInput");
+  const coverFileInput = document.getElementById("coverFileInput");
+
+  document.getElementById("avatarPhotoBtn").addEventListener("click", () => avatarFileInput.click());
+  document.getElementById("coverPhotoBtn").addEventListener("click", () => coverFileInput.click());
+
+  avatarFileInput.addEventListener("change", async () => {
+    const file = avatarFileInput.files[0];
+    avatarFileInput.value = "";
+    if (!file) return;
+    try {
+      const dataUrl = await fileToCompressedDataURL(file, 480, 0.85);
+      PROFILE.avatarImage = dataUrl;
+      writeProfileOverrides({ avatarImage: dataUrl });
+      renderHeader();
+      refreshIcons();
+    } catch {
+      // Unreadable/unsupported file — silently ignore in this local-only demo.
+    }
+  });
+
+  coverFileInput.addEventListener("change", async () => {
+    const file = coverFileInput.files[0];
+    coverFileInput.value = "";
+    if (!file) return;
+    try {
+      const dataUrl = await fileToCompressedDataURL(file, 1200, 0.8);
+      PROFILE.coverImage = dataUrl;
+      writeProfileOverrides({ coverImage: dataUrl });
+      renderHeader();
+      refreshIcons();
+    } catch {
+      // Unreadable/unsupported file — silently ignore in this local-only demo.
+    }
   });
 
   window.addEventListener(BLOCKED_USERS_UPDATED_EVENT, () => {
@@ -846,6 +1406,36 @@ document.addEventListener("DOMContentLoaded", () => {
     const currencySettingsBtn = e.target.closest('[data-settings-key="currency"]');
     if (currencySettingsBtn) {
       openCurrencyModal();
+      return;
+    }
+
+    const personalSettingsBtn = e.target.closest('[data-settings-key="personal"]');
+    if (personalSettingsBtn) {
+      openPersonalInfoModal();
+      return;
+    }
+
+    const notificationsSettingsBtn = e.target.closest('[data-settings-key="notifications"]');
+    if (notificationsSettingsBtn) {
+      openNotificationsModal();
+      return;
+    }
+
+    const paymentSettingsBtn = e.target.closest('[data-settings-key="payment"]');
+    if (paymentSettingsBtn) {
+      openPaymentMethodsModal();
+      return;
+    }
+
+    const privacySettingsBtn = e.target.closest('[data-settings-key="privacy"]');
+    if (privacySettingsBtn) {
+      openPrivacyModal();
+      return;
+    }
+
+    const helpSettingsBtn = e.target.closest('[data-settings-key="help"]');
+    if (helpSettingsBtn) {
+      window.location.href = "contact.html";
       return;
     }
 
