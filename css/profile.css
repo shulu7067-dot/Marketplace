@@ -303,6 +303,23 @@ button.verified-tag:hover { filter: brightness(0.97); }
 }
 .review-avatar { width: 40px; height: 40px; min-width: 40px; font-size: 13px; }
 
+.blocked-user-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+.blocked-user-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.blocked-user-name { flex: 1; font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.blocked-user-unblock { flex: none; width: auto; padding: 8px 14px; min-height: 0; font-size: 12.5px; }
+
 .review-headline {
   display: flex;
   flex-direction: column;

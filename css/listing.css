@@ -158,6 +158,16 @@
 }
 .verified-tag svg, .verified-tag i { width: 12px; height: 12px; }
 
+.blocked-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #C13F3F;
+}
+.blocked-tag svg, .blocked-tag i { width: 12px; height: 12px; }
+
 .seller-meta {
   display: flex;
   align-items: center;
@@ -247,6 +257,10 @@
   font-weight: 600;
 }
 .owner-banner svg, .owner-banner i { width: 14px; height: 14px; flex-shrink: 0; }
+
+.owner-banner--warning { background: #F6E2DC; color: #C13F3F; }
+
+.btn-disabled { opacity: 0.45; pointer-events: none; }
 
 @media (min-width: 640px) {
   .btn-share { width: auto; margin-top: 0; }
