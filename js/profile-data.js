@@ -22,9 +22,16 @@ const PROFILE = {
   ],
 };
 
-// Ids of listings this user currently has posted — pulled straight out of
-// LISTING_DETAILS so titles, prices, and images always stay in sync.
-const MY_LISTING_IDS = [2, 101, 103, 105];
+// Listings this user currently has posted — pulled straight out of
+// LISTING_DETAILS so titles, prices, and images always stay in sync. Each
+// entry carries the status it should show under on the Listings tab
+// (js/listings-store.js holds the matching LISTING_STATUS_META labels).
+const MY_LISTING_IDS = [
+  { id: 2, status: "published" },
+  { id: 101, status: "published" },
+  { id: 103, status: "pending" },
+  { id: 105, status: "sold" },
+];
 
 // Ids of listings this user has favorited (seeds state.favs on load).
 const MY_FAVORITE_IDS = [1, 104, 106];

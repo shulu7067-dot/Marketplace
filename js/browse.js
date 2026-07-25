@@ -21,13 +21,29 @@ function getRequestedQuery() {
   return params.get("q") || "";
 }
 
+// A saved search (js/saved-searches-store.js) links back here with the rest
+// of its filters in the URL too, so reopening one reproduces it exactly
+// instead of just the query/category.
+function getRequestedNumber(key) {
+  const params = new URLSearchParams(window.location.search);
+  const raw = params.get(key);
+  const num = raw === null ? NaN : Number(raw);
+  return Number.isFinite(num) ? num : null;
+}
+
+function getRequestedOption(key, options, fallback) {
+  const params = new URLSearchParams(window.location.search);
+  const val = params.get(key);
+  return val && options.includes(val) ? val : fallback;
+}
+
 const state = {
   query: getRequestedQuery(),
   category: getRequestedCategory(), // e.g. browse.html?category=Electronics -> "Home > Electronics"
-  minPrice: null,
-  maxPrice: null,
-  condition: "Any condition",
-  location: "All locations",
+  minPrice: getRequestedNumber("min"),
+  maxPrice: getRequestedNumber("max"),
+  condition: getRequestedOption("condition", BROWSE_CONDITION_OPTIONS, "Any condition"),
+  location: getRequestedOption("location", BROWSE_LOCATION_OPTIONS, "All locations"),
   sortBy: "newest",
   page: 1,
   favs: {},
@@ -95,6 +111,9 @@ function renderFilterOptions() {
   const locSel = document.getElementById("filterLocation");
   locSel.innerHTML = BROWSE_LOCATION_OPTIONS.map((l) => `<option value="${l}">${l}</option>`).join("");
   locSel.value = state.location;
+
+  document.getElementById("filterPriceMin").value = state.minPrice ?? "";
+  document.getElementById("filterPriceMax").value = state.maxPrice ?? "";
 
   const sortSel = document.getElementById("resultsSort");
   sortSel.innerHTML = BROWSE_SORT_OPTIONS.map((s) => `<option value="${s.value}">${s.label}</option>`).join("");
@@ -313,6 +332,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("filterToggleBtn").addEventListener("click", () => {
     document.getElementById("filterBar").classList.toggle("filter-bar--open");
+  });
+
+  document.getElementById("saveSearchBtn").addEventListener("click", () => {
+    const btn = document.getElementById("saveSearchBtn");
+    saveSearch(state);
+    const original = btn.innerHTML;
+    btn.innerHTML = `<i data-lucide="check"></i> Saved`;
+    btn.disabled = true;
+    refreshIcons();
+    setTimeout(() => {
+      btn.innerHTML = original;
+      btn.disabled = false;
+      refreshIcons();
+    }, 1600);
   });
 
   document.addEventListener("click", (e) => {

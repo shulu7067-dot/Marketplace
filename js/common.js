@@ -39,6 +39,54 @@ function refreshIcons() {
   if (window.lucide) window.lucide.createIcons();
 }
 
+// Card/gallery media background: real uploaded photos (data-URL strings) take
+// priority, falling back to the gradient-pair placeholders the demo data uses.
+function cardMediaStyle(item) {
+  const first = item.images ? item.images[0] : null;
+  if (typeof first === "string") {
+    return `background-image:url('${first}');background-size:cover;background-position:center;`;
+  }
+  if (item.grad) return `background:linear-gradient(135deg, ${item.grad[0]}, ${item.grad[1]})`;
+  return "";
+}
+
+// Lightweight confirm dialog built on the shared .modal-overlay component
+// (css/modal.css). Resolves true/false — no static HTML needed per page.
+function confirmModal({ title, message, confirmLabel = "Confirm", cancelLabel = "Cancel", danger = false }) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <h2 class="modal-title">${title}</h2>
+          <button type="button" class="modal-close" aria-label="Close"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body"><p style="margin:0;">${message}</p></div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" data-action="cancel">${cancelLabel}</button>
+          <button type="button" class="btn-primary ${danger ? "btn-danger" : ""}" data-action="confirm">${confirmLabel}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    refreshIcons();
+    requestAnimationFrame(() => overlay.classList.add("open"));
+
+    function cleanup(result) {
+      overlay.classList.remove("open");
+      setTimeout(() => overlay.remove(), 200);
+      resolve(result);
+    }
+
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) return cleanup(false);
+      if (e.target.closest(".modal-close")) return cleanup(false);
+      const btn = e.target.closest("[data-action]");
+      if (btn) cleanup(btn.dataset.action === "confirm");
+    });
+  });
+}
+
 /* --------------------------------- Top nav ------------------------------------ */
 // activeLabel lets each page decide which primary nav item (if any) is current.
 function renderNavLinks(activeLabel = "Home") {

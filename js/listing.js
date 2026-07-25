@@ -11,10 +11,36 @@ const state = {
   favs: {}, // local favorite state for this page (fav button on the gallery + similar-listings cards)
 };
 
+const REPORT_REASONS = [
+  "Prohibited item",
+  "Suspected scam or fraud",
+  "Spam or misleading",
+  "Offensive content",
+  "Other",
+];
+
+// Accepts both the numeric LISTING_DETAILS ids and the string ids ("u_...")
+// used by the localStorage-backed user-listings store (js/listings-store.js).
 function getRequestedId() {
-  const params = new URLSearchParams(window.location.search);
-  const id = Number(params.get("id"));
-  return LISTING_DETAILS[id] ? id : 1; // fall back to a known listing
+  const raw = new URLSearchParams(window.location.search).get("id");
+  if (!raw) return 1;
+  const numId = Number(raw);
+  if (!Number.isNaN(numId) && LISTING_DETAILS[numId]) return numId;
+  if (getUserListing(raw)) return raw;
+  return 1; // fall back to a known listing
+}
+
+function getRecordForId(id) {
+  if (LISTING_DETAILS[id]) return LISTING_DETAILS[id];
+  const stored = getUserListing(id);
+  return stored ? userListingToRecord(stored) : LISTING_DETAILS[1];
+}
+
+// A single image entry is either a [c1, c2] gradient pair (demo data) or a
+// data-URL string (a real uploaded photo from the sell form).
+function mediaStyle(img) {
+  if (Array.isArray(img)) return `background:linear-gradient(135deg, ${img[0]}, ${img[1]})`;
+  return `background-image:url('${img}');background-size:cover;background-position:center;`;
 }
 
 function getSimilarListings(record) {
@@ -39,14 +65,13 @@ function renderGallery(record) {
   const main = document.getElementById("galleryMain");
   const thumbs = document.getElementById("galleryThumbs");
 
-  const [c1, c2] = record.images[state.activeImage];
-  main.style.background = `linear-gradient(135deg, ${c1}, ${c2})`;
+  main.setAttribute("style", mediaStyle(record.images[state.activeImage]));
   main.innerHTML = favButtonHTML(record.id, !!state.favs[record.id]);
 
   thumbs.innerHTML = record.images
     .map((img, i) => `
       <button class="gallery-thumb ${i === state.activeImage ? "active" : ""}" data-thumb-index="${i}" aria-label="Photo ${i + 1}"
-        style="background:linear-gradient(135deg, ${img[0]}, ${img[1]})"></button>`)
+        style="${mediaStyle(img)}"></button>`)
     .join("");
 }
 
@@ -74,9 +99,56 @@ function renderSeller(record) {
         <span>Member since ${s.memberSince}</span>
       </div>
     </div>`;
+}
 
-  document.getElementById("messageSellerBtn").href = `mailto:${s.email}?subject=${encodeURIComponent(record.title)}`;
-  document.getElementById("callSellerBtn").href = `tel:${s.phone.replace(/[^+\d]/g, "")}`;
+// Buyer view (message/call/share/report) vs. owner view (edit/delete) —
+// swapped based on whether the record came from the user-listings store.
+function renderActionArea(record) {
+  const wrap = document.getElementById("listingActionsWrap");
+  if (record.isOwn) {
+    wrap.innerHTML = `
+      <div class="owner-banner">
+        <i data-lucide="info"></i>
+        This is your listing${record.status === "draft" ? " — it's a draft and isn't visible to buyers yet." : "."}
+      </div>
+      <div class="action-buttons">
+        <a class="btn-primary" href="sell.html?edit=${record.id}">
+          <i data-lucide="pencil"></i> Edit listing
+        </a>
+        <button class="btn-secondary" id="deleteListingBtn" type="button">
+          <i data-lucide="trash-2"></i> Delete listing
+        </button>
+      </div>`;
+    return;
+  }
+
+  wrap.innerHTML = `
+    <div class="action-buttons">
+      <a class="btn-primary" id="messageSellerBtn" href="mailto:${record.seller.email}?subject=${encodeURIComponent(record.title)}">
+        <i data-lucide="message-circle"></i> Message Seller
+      </a>
+      <a class="btn-secondary" id="callSellerBtn" href="tel:${record.seller.phone.replace(/[^+\d]/g, "")}">
+        <i data-lucide="phone"></i> Call Seller
+      </a>
+    </div>
+    <button class="btn-share" id="shareListingBtn" type="button">
+      <i data-lucide="share-2"></i> Share Listing
+    </button>
+    <button class="btn-share btn-report" id="reportListingBtn" type="button">
+      <i data-lucide="flag"></i> Report listing
+    </button>`;
+}
+
+function renderReportReasons() {
+  const list = document.getElementById("reportReasonList");
+  if (!list) return;
+  list.innerHTML = REPORT_REASONS.map(
+    (reason, i) => `
+    <label class="radio-option">
+      <input type="radio" name="reportReason" value="${reason}" ${i === 0 ? "checked" : ""} />
+      <span>${reason}</span>
+    </label>`
+  ).join("");
 }
 
 function renderDescription(record) {
@@ -132,6 +204,8 @@ function renderAll(record) {
   renderGallery(record);
   renderHeader(record);
   renderSeller(record);
+  renderActionArea(record);
+  renderReportReasons();
   renderDescription(record);
   renderSpecs(record);
   renderSafetyTips();
@@ -170,11 +244,43 @@ function shareListing(record) {
   });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  const record = LISTING_DETAILS[getRequestedId()];
-  renderAll(record);
+function openReportModal() {
+  document.getElementById("reportModal").classList.add("open");
+}
 
-  document.getElementById("shareListingBtn").addEventListener("click", () => shareListing(record));
+function closeReportModal() {
+  document.getElementById("reportModal").classList.remove("open");
+}
+
+function submitReport() {
+  closeReportModal();
+  document.getElementById("reportDetails").value = "";
+  const btn = document.getElementById("reportListingBtn");
+  if (!btn) return;
+  const original = btn.innerHTML;
+  btn.innerHTML = `<i data-lucide="check"></i> Reported — thank you`;
+  refreshIcons();
+  setTimeout(() => {
+    btn.innerHTML = original;
+    refreshIcons();
+  }, 2200);
+}
+
+async function handleDeleteOwnListing(record) {
+  const confirmed = await confirmModal({
+    title: "Delete this listing?",
+    message: "This will permanently remove your listing. This action can't be undone.",
+    confirmLabel: "Delete",
+    danger: true,
+  });
+  if (!confirmed) return;
+  deleteUserListing(record.id);
+  window.location.href = "profile.html";
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const record = getRecordForId(getRequestedId());
+  renderAll(record);
 
   document.addEventListener("click", (e) => {
     const thumb = e.target.closest("[data-thumb-index]");
@@ -187,7 +293,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const favBtn = e.target.closest("[data-fav-id]");
     if (favBtn) {
-      toggleFav(Number(favBtn.dataset.favId), record);
+      toggleFav(favBtn.dataset.favId, record);
       return;
     }
 
@@ -195,6 +301,36 @@ document.addEventListener("DOMContentLoaded", () => {
     if (tabBtn) {
       renderBottomNav(tabBtn.dataset.tab);
       refreshIcons();
+      return;
+    }
+
+    if (e.target.closest("#shareListingBtn")) {
+      shareListing(record);
+      return;
+    }
+
+    if (e.target.closest("#reportListingBtn")) {
+      openReportModal();
+      return;
+    }
+
+    if (e.target.closest("#deleteListingBtn")) {
+      handleDeleteOwnListing(record);
+      return;
+    }
+
+    if (e.target.closest("#reportSubmitBtn")) {
+      submitReport();
+      return;
+    }
+
+    if (e.target.closest("#reportCancelBtn") || e.target.closest("#reportModalClose")) {
+      closeReportModal();
+      return;
+    }
+
+    if (e.target.id === "reportModal") {
+      closeReportModal();
       return;
     }
 
