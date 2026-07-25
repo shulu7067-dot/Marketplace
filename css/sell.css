@@ -177,6 +177,8 @@
 .photo-input { display: none; }
 
 /* --------------------------------- Submit bar --------------------------------- */
+#previewBtn { margin-top: 4px; }
+
 .sell-actions {
   display: flex;
   gap: 10px;
@@ -184,6 +186,9 @@
 }
 .sell-actions .btn-primary,
 .sell-actions .btn-secondary { min-height: 48px; font-size: 15px; }
+
+#deleteDraftBtn { margin-top: 4px; }
+#deleteDraftBtn[hidden] { display: none; }
 
 .sell-toast {
   display: flex;

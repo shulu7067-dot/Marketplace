@@ -155,6 +155,37 @@
 
 .tab-panel[hidden] { display: none; }
 
+/* ------------------------------- Sub-tabs ---------------------------------------
+   Second-level filter row inside a tab panel: listing status (Active/Pending/
+   Sold/Expired/Drafts) and saved view (Saved items/Saved searches). Scrolls
+   horizontally on narrow screens instead of wrapping/shrinking labels. */
+.sub-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  margin-bottom: 14px;
+  scrollbar-width: none;
+}
+.sub-tabs::-webkit-scrollbar { display: none; }
+.sub-tab {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  min-height: 32px;
+  white-space: nowrap;
+}
+.sub-tab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -206,6 +237,82 @@
   line-height: 1.6;
   color: var(--text-secondary);
 }
+
+/* --------------------------- Owned-listing card overlay -------------------------- */
+.card-owner-actions {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  gap: 6px;
+}
+.card-owner-btn {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  border-radius: 999px;
+  border: none;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  text-decoration: none;
+}
+.card-owner-btn svg, .card-owner-btn i { width: 13px; height: 13px; }
+.card-owner-btn--danger { color: #C13F3F; }
+
+.status-pill {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(22, 27, 44, 0.75);
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.status-pill--draft { background: var(--accent-soft); color: var(--accent); }
+.status-pill--published { background: rgba(22, 27, 44, 0.75); color: #fff; }
+.status-pill--pending { background: #C6841F; color: #fff; }
+.status-pill--sold { background: #2F5D62; color: #fff; }
+.status-pill--expired { background: #C13F3F; color: #fff; }
+
+/* ----------------------------- Saved searches ------------------------------------ */
+.saved-searches-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.saved-search-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.saved-search-icon {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.saved-search-icon svg, .saved-search-icon i { width: 16px; height: 16px; }
+.saved-search-body { flex: 1; min-width: 0; }
+.saved-search-title { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.saved-search-summary { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+.saved-search-card .card-owner-btn { position: static; box-shadow: none; background: var(--surface-alt); }
 
 /* ------------------------------ Account settings -------------------------------- */
 .settings-list {

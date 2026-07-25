@@ -231,6 +231,23 @@
 }
 .btn-share svg, .btn-share i { width: 14px; height: 14px; }
 
+.btn-report { color: var(--text-tertiary); }
+.btn-report:hover { color: #C13F3F; }
+
+.owner-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.owner-banner svg, .owner-banner i { width: 14px; height: 14px; flex-shrink: 0; }
+
 @media (min-width: 640px) {
   .btn-share { width: auto; margin-top: 0; }
   .seller-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

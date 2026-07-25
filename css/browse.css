@@ -98,6 +98,10 @@
 
 .filter-apply-btn { flex-shrink: 0; }
 
+.filter-save-btn { flex: none; flex-shrink: 0; white-space: nowrap; }
+.filter-save-btn:disabled { opacity: 0.7; }
+.filter-save-btn svg, .filter-save-btn i { color: var(--accent); }
+
 @media (min-width: 1024px) {
   .filter-bar { flex-wrap: wrap; overflow-x: visible; }
 }
