@@ -102,12 +102,17 @@
 
           <!-- Listings panel -->
           <div class="tab-panel" id="panel-listings">
-            <div class="sub-tabs" id="listingSubTabs" role="tablist" aria-label="Listing status">
-              <button class="sub-tab active" data-listing-status="published" role="tab" aria-selected="true">Active</button>
-              <button class="sub-tab" data-listing-status="pending" role="tab" aria-selected="false">Pending</button>
-              <button class="sub-tab" data-listing-status="sold" role="tab" aria-selected="false">Sold</button>
-              <button class="sub-tab" data-listing-status="expired" role="tab" aria-selected="false">Expired</button>
-              <button class="sub-tab" data-listing-status="draft" role="tab" aria-selected="false">Drafts</button>
+            <div class="listings-panel-head">
+              <div class="sub-tabs" id="listingSubTabs" role="tablist" aria-label="Listing status">
+                <button class="sub-tab active" data-listing-status="published" role="tab" aria-selected="true">Active</button>
+                <button class="sub-tab" data-listing-status="pending" role="tab" aria-selected="false">Pending</button>
+                <button class="sub-tab" data-listing-status="sold" role="tab" aria-selected="false">Sold</button>
+                <button class="sub-tab" data-listing-status="expired" role="tab" aria-selected="false">Expired</button>
+                <button class="sub-tab" data-listing-status="draft" role="tab" aria-selected="false">Drafts</button>
+              </div>
+              <a class="btn-secondary insights-link-btn" href="insights.html">
+                <i data-lucide="bar-chart-3"></i> Insights
+              </a>
             </div>
             <div class="listings-grid" id="myListingsGrid"></div>
             <div class="empty-state" id="myListingsEmpty" hidden>
@@ -169,6 +174,7 @@
     </div>
 
     <script src="js/common.js"></script>
+    <script src="js/analytics-store.js"></script>
     <script src="js/favorites-store.js"></script>
     <script src="js/messages-data.js"></script>
     <script src="js/messages-store.js"></script>

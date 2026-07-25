@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Favorites — Marka</title>
+    <title>Insights — Marka</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -17,9 +17,8 @@
 
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/listing.css" />
-    <link rel="stylesheet" href="css/browse.css" />
-    <link rel="stylesheet" href="css/favorites.css" />
-    <link rel="stylesheet" href="css/modal.css" />
+    <link rel="stylesheet" href="css/profile.css" />
+    <link rel="stylesheet" href="css/insights.css" />
   </head>
   <body>
     <div class="page">
@@ -64,36 +63,58 @@
         <nav class="breadcrumb" aria-label="Breadcrumb">
           <a href="index.html">Home</a>
           <i data-lucide="chevron-right"></i>
-          <span aria-current="page">Favorites</span>
+          <a href="profile.html">Profile</a>
+          <i data-lucide="chevron-right"></i>
+          <span aria-current="page">Insights</span>
         </nav>
 
-        <section class="section">
-          <div class="fav-head">
-            <h1 class="fav-title">Your favorites</h1>
-            <button type="button" class="fav-clear-btn" id="favClearAllBtn">
-              <i data-lucide="trash-2"></i> Clear all
-            </button>
+        <main class="insights-main">
+          <div class="insights-heading">
+            <h1 class="insights-title">Listing insights</h1>
+            <p class="insights-subtitle">See how buyers are finding and engaging with your ads.</p>
           </div>
 
-          <div class="fav-subhead">
-            <div class="fav-count" id="favCount" aria-live="polite"></div>
-            <label class="fav-sort-label" for="favSort">
-              Sort by
-              <select class="filter-select" id="favSort" aria-label="Sort favorites"></select>
-            </label>
-          </div>
+          <!-- Overview: totals across every listing -->
+          <section class="insights-section">
+            <h2 class="insights-section-title">Overview — all listings</h2>
+            <div class="stats-grid" id="overviewStats"></div>
+          </section>
 
-          <div class="listings-grid" id="favGrid"></div>
+          <!-- Per-listing picker -->
+          <section class="insights-section">
+            <div class="insights-section-head">
+              <h2 class="insights-section-title">By listing</h2>
+              <label class="sr-only" for="listingPicker">Choose a listing</label>
+              <select class="filter-select" id="listingPicker" aria-label="Choose a listing"></select>
+            </div>
 
-          <div class="empty-state" id="favEmpty" hidden>
-            <div class="empty-illustration"><i data-lucide="heart"></i></div>
-            <h3 class="empty-title">No favorites yet</h3>
-            <p class="empty-text">Tap the heart on any listing to save it here so it's easy to find again.</p>
-            <a class="btn-primary" href="browse.html">
-              <i data-lucide="search"></i> Browse listings
-            </a>
-          </div>
-        </section>
+            <div class="insights-empty" id="insightsEmpty" hidden>
+              <div class="empty-illustration"><i data-lucide="bar-chart-3"></i></div>
+              <h3 class="empty-title">No listings yet</h3>
+              <p class="empty-text">Post an ad to start tracking views, favorites, messages and calls.</p>
+              <a class="btn-primary" href="sell.html"><i data-lucide="plus"></i> Post an ad</a>
+            </div>
+
+            <div id="insightsDetail" hidden>
+              <div class="insights-listing-card" id="insightsListingCard"></div>
+
+              <div class="stats-grid" id="listingStats"></div>
+
+              <div class="insights-chart-card">
+                <div class="insights-chart-head">
+                  <h3 class="insights-chart-title">Views — last 14 days</h3>
+                  <span class="insights-chart-total" id="chartTotal"></span>
+                </div>
+                <div class="insights-chart" id="viewsChart" role="img" aria-label="Bar chart of daily views over the last 14 days"></div>
+              </div>
+
+              <div class="insights-breakdown-card">
+                <h3 class="insights-chart-title">Engagement breakdown</h3>
+                <div class="insights-breakdown" id="engagementBreakdown"></div>
+              </div>
+            </div>
+          </section>
+        </main>
 
         <!-- Bottom nav — mobile & tablet only; laptop/desktop use the top nav above -->
         <nav class="bottom-nav" id="bottomNav"></nav>
@@ -101,15 +122,15 @@
     </div>
 
     <script src="js/common.js"></script>
+    <script src="js/location-data.js"></script>
     <script src="js/analytics-store.js"></script>
-    <script src="js/favorites-store.js"></script>
-    <script src="js/messages-data.js"></script>
-    <script src="js/messages-store.js"></script>
     <script src="js/notifications-data.js"></script>
     <script src="js/notifications-store.js"></script>
     <script src="js/listing-data.js"></script>
+    <script src="js/profile-data.js"></script>
     <script src="js/listings-store.js"></script>
-    <script src="js/blocked-users-store.js"></script>
-    <script src="js/favorites.js"></script>
+    <script src="js/favorites-store.js"></script>
+    <script src="js/promotions-store.js"></script>
+    <script src="js/insights.js"></script>
   </body>
 </html>

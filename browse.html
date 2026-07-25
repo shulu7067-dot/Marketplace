@@ -18,6 +18,10 @@
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/listing.css" />
     <link rel="stylesheet" href="css/browse.css" />
+
+    <!-- Map view (Leaflet + OpenStreetMap tiles) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   </head>
   <body>
     <div class="page">
@@ -92,6 +96,12 @@
             <label class="sr-only" for="filterLocation">Location</label>
             <select class="filter-select" id="filterLocation" aria-label="Location"></select>
 
+            <label class="sr-only" for="filterProvince">Province</label>
+            <select class="filter-select" id="filterProvince" aria-label="Province"></select>
+
+            <label class="sr-only" for="filterCity">City</label>
+            <select class="filter-select" id="filterCity" aria-label="City"></select>
+
             <button class="post-ad-btn filter-apply-btn" id="filterApplyBtn">
               <i data-lucide="sliders-horizontal"></i> Filter
             </button>
@@ -99,6 +109,16 @@
             <button class="btn-secondary filter-save-btn" id="saveSearchBtn" type="button">
               <i data-lucide="bookmark"></i> Save search
             </button>
+          </div>
+
+          <!-- Distance search -->
+          <div class="distance-bar" id="distanceBar">
+            <button class="btn-secondary distance-locate-btn" id="useMyLocationBtn" type="button">
+              <i data-lucide="locate-fixed"></i> <span id="useMyLocationLabel">Search near me</span>
+            </button>
+            <label class="sr-only" for="filterRadius">Distance</label>
+            <select class="filter-select distance-radius-select" id="filterRadius" aria-label="Distance radius" disabled></select>
+            <span class="distance-status" id="distanceStatus" aria-live="polite"></span>
           </div>
 
           <!-- Active filter chips -->
@@ -109,14 +129,29 @@
         <section class="section section--latest" id="resultsSection">
           <div class="results-header">
             <div class="results-count" id="resultsCount" aria-live="polite"></div>
-            <div class="results-sort-label">
-              <span>Sort by</span>
-              <label class="sr-only" for="resultsSort">Sort results</label>
-              <select class="filter-select" id="resultsSort" aria-label="Sort results"></select>
+            <div class="results-header-actions">
+              <div class="view-toggle" id="viewToggle" role="group" aria-label="Results view">
+                <button type="button" class="view-toggle-btn active" id="gridViewBtn" aria-pressed="true">
+                  <i data-lucide="layout-grid"></i> Grid
+                </button>
+                <button type="button" class="view-toggle-btn" id="mapViewBtn" aria-pressed="false">
+                  <i data-lucide="map"></i> Map
+                </button>
+              </div>
+              <div class="results-sort-label">
+                <span>Sort by</span>
+                <label class="sr-only" for="resultsSort">Sort results</label>
+                <select class="filter-select" id="resultsSort" aria-label="Sort results"></select>
+              </div>
             </div>
           </div>
 
           <div class="listings-grid" id="browseGrid"></div>
+
+          <div class="map-view" id="mapView" hidden>
+            <div class="map-canvas" id="browseMap"></div>
+            <div class="map-hint"><i data-lucide="info"></i> Tap a pin to preview a listing.</div>
+          </div>
 
           <div class="empty-state" id="emptyState" hidden>
             <div class="empty-illustration"><i data-lucide="search-x"></i></div>
@@ -193,6 +228,8 @@
     <script src="js/messages-store.js"></script>
     <script src="js/notifications-data.js"></script>
     <script src="js/notifications-store.js"></script>
+    <script src="js/location-data.js"></script>
+    <script src="js/analytics-store.js"></script>
     <script src="js/listing-data.js"></script>
     <script src="js/browse-data.js"></script>
     <script src="js/blocked-users-store.js"></script>

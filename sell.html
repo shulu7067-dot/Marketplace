@@ -19,6 +19,10 @@
     <link rel="stylesheet" href="css/listing.css" />
     <link rel="stylesheet" href="css/sell.css" />
     <link rel="stylesheet" href="css/modal.css" />
+
+    <!-- Map view (Leaflet + OpenStreetMap tiles) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   </head>
   <body>
     <div class="page">
@@ -125,10 +129,32 @@
                     <input type="number" id="adPrice" name="price" min="0" inputmode="numeric" placeholder="0" required />
                   </div>
                 </div>
+              </div>
+
+              <div class="form-row">
                 <div class="form-group">
-                  <label class="form-label" for="adLocation">Location</label>
-                  <input class="form-input" type="text" id="adLocation" name="location" placeholder="e.g. Brooklyn, US" required />
+                  <label class="form-label" for="adProvince">Province / State</label>
+                  <select class="form-select" id="adProvince" name="province" required></select>
                 </div>
+                <div class="form-group">
+                  <label class="form-label" for="adCity">City</label>
+                  <select class="form-select" id="adCity" name="city" required></select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="adLocation">Location (shown on your ad)</label>
+                <input class="form-input" type="text" id="adLocation" name="location" placeholder="e.g. Brooklyn, NY" required />
+              </div>
+
+              <button type="button" class="btn-secondary form-locate-btn" id="useGpsBtn">
+                <i data-lucide="locate-fixed"></i> <span id="useGpsLabel">Use my current location</span>
+              </button>
+              <p class="form-locate-status" id="gpsStatus" aria-live="polite"></p>
+
+              <div class="form-map-wrap" id="formMapWrap" hidden>
+                <div class="form-map-canvas" id="sellMap"></div>
+                <p class="form-map-hint"><i data-lucide="move"></i> Drag the pin to fine-tune your exact spot — only your city/area is shown publicly.</p>
               </div>
             </section>
 
@@ -181,6 +207,8 @@
     </div>
 
     <script src="js/common.js"></script>
+    <script src="js/location-data.js"></script>
+    <script src="js/analytics-store.js"></script>
     <script src="js/messages-data.js"></script>
     <script src="js/messages-store.js"></script>
     <script src="js/notifications-data.js"></script>
