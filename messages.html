@@ -97,6 +97,9 @@
                   <div class="msg-chat-header-name" id="msgChatName"></div>
                   <div class="msg-chat-header-status" id="msgChatStatus"></div>
                 </div>
+                <button class="msg-block-btn" id="msgBlockBtn" type="button" aria-label="Block user">
+                  <i data-lucide="user-x"></i>
+                </button>
               </div>
 
               <a class="msg-listing-banner" id="msgChatListing" href="listing.html">
@@ -122,7 +125,13 @@
                 </button>
               </div>
 
-              <div class="msg-composer">
+              <div class="msg-blocked-banner" id="msgBlockedBanner" style="display:none;">
+                <i data-lucide="user-x"></i>
+                <span>You've blocked this user. Unblock them to send messages.</span>
+                <button type="button" id="msgUnblockBtn">Unblock</button>
+              </div>
+
+              <div class="msg-composer" id="msgComposer">
                 <button class="msg-composer-attach-btn" id="msgAttachBtn" type="button" aria-label="Send a photo">
                   <i data-lucide="image-plus"></i>
                 </button>
@@ -148,6 +157,7 @@
     <script src="js/messages-store.js"></script>
     <script src="js/notifications-data.js"></script>
     <script src="js/notifications-store.js"></script>
+    <script src="js/blocked-users-store.js"></script>
     <script src="js/messages.js"></script>
   </body>
 </html>

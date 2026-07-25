@@ -66,3 +66,14 @@ icon in the desktop top nav to open `messages.html`.
   it as a data-URL, the same approach `js/listings-store.js` uses for
   uploaded listing photos. The unread badge on the bottom-nav Chat tab and
   the topbar message icon (`js/common.js`) both read from this store.
+- Recently viewed listings (browse.html) are tracked for real via
+  `js/recently-viewed-store.js`, which records every listing a visitor opens
+  (`recordListingView()`, called from `js/listing.js`) to localStorage and
+  falls back to `RECENTLY_VIEWED_IDS` (`js/browse-data.js`) until there's at
+  least one real view.
+- Blocking a user (from a listing's seller card or a message thread's header)
+  is handled by `js/blocked-users-store.js`, keyed by seller name since this
+  build has no user-id system. A blocked seller's listings are hidden from
+  `browse.html`/`category.html` and the similar-listings row on
+  `listing.html`; messaging/calling them is disabled. Manage or reverse
+  blocks any time from Profile > Settings > Blocked users.
