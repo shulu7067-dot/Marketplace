@@ -229,7 +229,7 @@
 .form-map-wrap { margin-bottom: 18px; }
 .form-map-canvas {
   width: 100%;
-  height: 260px;
+  height: clamp(220px, 40vh, 340px);
   border-radius: 14px;
   overflow: hidden;
   border: 1px solid var(--border);
