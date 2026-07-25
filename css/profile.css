@@ -385,6 +385,15 @@ button.verified-tag:hover { filter: brightness(0.97); }
 }
 .card-owner-btn svg, .card-owner-btn i { width: 13px; height: 13px; }
 .card-owner-btn--danger { color: #C13F3F; }
+.card-owner-btn--promote { color: var(--accent); }
+
+/* Boosted badge on an owned-listing card sits opposite the edit/delete/
+   promote cluster (which already occupies the default top-left corner). */
+.boosted-badge--corner {
+  top: 8px;
+  left: auto;
+  right: 8px;
+}
 
 .status-pill {
   position: absolute;

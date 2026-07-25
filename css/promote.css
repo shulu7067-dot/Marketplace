@@ -1,0 +1,255 @@
+/* ============================================================================
+   MARKA — Promote (boost) ad page styles
+   Loaded after style.css and listing.css (reuses .breadcrumb / .section /
+   .btn-primary / .btn-secondary / .boosted-badge / .status-pill from
+   there). Adds the listing-preview strip, plan-picker cards, order summary
+   and the post-purchase confirmation panel.
+   ============================================================================ */
+
+.promote-intro {
+  margin: 0 0 18px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ------------------------------ Listing preview -------------------------------- */
+.promote-listing {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 20px;
+}
+.promote-listing-media {
+  width: 64px;
+  height: 64px;
+  min-width: 64px;
+  border-radius: 10px;
+  background-size: cover;
+  background-position: center;
+}
+.promote-listing-body { min-width: 0; flex: 1; }
+.promote-listing-title {
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.promote-listing-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.promote-listing-price {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--primary);
+}
+
+/* ------------------------------ Current boost panel ----------------------------- */
+.promote-current {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  margin-bottom: 20px;
+}
+.promote-current i, .promote-current svg { width: 20px; height: 20px; color: var(--accent); flex-shrink: 0; }
+.promote-current-body { flex: 1; min-width: 0; }
+.promote-current-title { font-weight: 700; font-size: 14px; color: var(--text-primary); }
+.promote-current-text { font-size: 12.5px; color: var(--text-secondary); margin-top: 2px; }
+.promote-current .btn-secondary {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 12.5px;
+}
+
+/* ---------------------------------- Plan grid ------------------------------------ */
+.promote-section-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--text-primary);
+  margin: 0 0 12px;
+}
+
+.plan-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+@media (min-width: 768px) { .plan-grid { flex-direction: row; align-items: stretch; } }
+
+.plan-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+@media (min-width: 768px) { .plan-card { flex: 1; } }
+.plan-card:hover { border-color: var(--secondary); }
+.plan-card.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.plan-card-badge {
+  position: absolute;
+  top: -10px;
+  left: 16px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.plan-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.plan-radio-dot {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  border-radius: 999px;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+.plan-card.selected .plan-radio-dot { border-color: var(--accent); background: var(--accent); }
+.plan-radio-dot svg, .plan-radio-dot i { width: 12px; height: 12px; color: #fff; display: none; }
+.plan-card.selected .plan-radio-dot svg, .plan-card.selected .plan-radio-dot i { display: block; }
+
+.plan-name { font-weight: 700; font-size: 15.5px; color: var(--text-primary); }
+.plan-tagline { font-size: 12.5px; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; }
+
+.plan-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-family: var(--font-mono);
+}
+.plan-price { font-size: 22px; font-weight: 700; color: var(--text-primary); }
+.plan-duration { font-size: 12px; color: var(--text-tertiary); }
+
+.plan-features {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.plan-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.plan-features svg, .plan-features i { width: 14px; height: 14px; color: var(--success); flex-shrink: 0; margin-top: 1px; }
+
+/* --------------------------------- Order summary --------------------------------- */
+.promote-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface-alt);
+  border-radius: 14px;
+  margin-bottom: 16px;
+}
+.promote-summary-label { font-size: 13px; color: var(--text-secondary); }
+.promote-summary-total {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--text-primary);
+}
+
+.promote-cta { width: 100%; min-height: 50px; font-size: 15px; }
+.promote-fineprint {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* ----------------------------------- Success ------------------------------------- */
+.promote-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px 16px 8px;
+}
+.promote-success-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  background: var(--success-soft);
+  color: var(--success);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.promote-success-icon svg, .promote-success-icon i { width: 30px; height: 30px; }
+.promote-success-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--text-primary);
+  margin: 0 0 6px;
+}
+.promote-success-text {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  max-width: 360px;
+  line-height: 1.55;
+  margin: 0 0 20px;
+}
+.promote-success-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+}
+.promote-success-actions .btn-primary,
+.promote-success-actions .btn-secondary { min-height: 48px; font-size: 14.5px; width: 100%; }
+
+/* ------------------------------------ Misc ---------------------------------------- */
+[hidden] { display: none !important; }
