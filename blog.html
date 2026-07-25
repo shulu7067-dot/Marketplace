@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Marka — Find your next great trade</title>
+    <title>Blog — Marka</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -16,6 +16,9 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
 
     <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/listing.css" />
+    <link rel="stylesheet" href="css/modal.css" />
+    <link rel="stylesheet" href="css/blog.css" />
   </head>
   <body>
     <div class="page">
@@ -56,66 +59,22 @@
           </div>
         </header>
 
-        <!-- Greeting + search -->
-        <section class="hero">
-          <h1 class="hero-title">Find your next great trade.</h1>
-          <div class="search-row">
-            <div class="search-field">
-              <i data-lucide="search" class="search-icon"></i>
-              <input type="text" id="heroSearch" placeholder="Search bikes, homes, phones…" aria-label="Search listings" />
-            </div>
-            <a class="filter-btn" href="browse.html?filters=open" aria-label="Filters">
-              <i data-lucide="sliders-horizontal"></i>
-            </a>
-          </div>
-        </section>
+        <!-- Breadcrumb -->
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+          <a href="index.html">Home</a>
+          <i data-lucide="chevron-right"></i>
+          <span aria-current="page">Blog</span>
+        </nav>
 
-        <!-- Categories -->
-        <section class="section">
-          <div class="section-head">
-            <h2 class="section-title">Categories</h2>
-            <a class="show-all" id="categoriesShowAll" href="categories.html">Show all <i data-lucide="chevron-right"></i></a>
-          </div>
-          <div class="categories-carousel">
-            <button class="carousel-arrow carousel-arrow--left" id="catArrowLeft" aria-label="Scroll categories left">
-              <i data-lucide="chevron-left"></i>
-            </button>
-            <div class="categories-grid" id="categoriesGrid"></div>
-            <button class="carousel-arrow carousel-arrow--right" id="catArrowRight" aria-label="Scroll categories right">
-              <i data-lucide="chevron-right"></i>
-            </button>
-          </div>
-        </section>
+        <!-- Heading -->
+        <div class="blog-heading">
+          <h1 class="blog-page-title">From the Marka blog</h1>
+          <p class="blog-page-subtitle">Selling tips, safety guides, and product updates for the Marka community.</p>
+        </div>
 
-        <!-- Promo banner -->
-        <section class="section">
-          <div class="promo">
-            <div class="promo-copy">
-              <div class="promo-eyebrow">Sell faster</div>
-              <div class="promo-headline">Boost your ad to the top of search</div>
-            </div>
-            <a class="promo-btn" href="profile.html" aria-label="Boost your ad">
-              <i data-lucide="arrow-right"></i>
-            </a>
-          </div>
-        </section>
-
-        <!-- Featured -->
-        <section class="section">
-          <div class="section-head">
-            <h2 class="section-title">Featured</h2>
-            <a class="show-all" href="browse.html">Show all <i data-lucide="chevron-right"></i></a>
-          </div>
-          <div class="featured-row" id="featuredRow"></div>
-        </section>
-
-        <!-- Latest ads -->
+        <!-- Posts -->
         <section class="section section--latest">
-          <div class="section-head">
-            <h2 class="section-title">Latest ads</h2>
-            <a class="show-all" href="browse.html">Show all <i data-lucide="chevron-right"></i></a>
-          </div>
-          <div class="listings-grid" id="listingsGrid"></div>
+          <div class="blog-grid" id="blogGrid"></div>
         </section>
 
         <!-- Bottom nav (mobile & tablet only) -->
@@ -129,6 +88,7 @@
     <script src="js/messages-store.js"></script>
     <script src="js/notifications-data.js"></script>
     <script src="js/notifications-store.js"></script>
-    <script src="js/script.js"></script>
+    <script src="js/blog-data.js"></script>
+    <script src="js/blog.js"></script>
   </body>
 </html>
