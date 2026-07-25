@@ -150,6 +150,36 @@
   padding: 6px 2px;
 }
 
+/* -------------------------------- Distance search --------------------------------- */
+.distance-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.distance-locate-btn { flex-shrink: 0; min-height: 40px; padding: 0 14px; font-size: 13px; }
+.distance-locate-btn.active { border-color: var(--accent); color: var(--accent); }
+.distance-locate-btn.active svg, .distance-locate-btn.active i { color: var(--accent); }
+.distance-radius-select { min-width: 150px; min-height: 40px; font-size: 13px; }
+.distance-radius-select:disabled { opacity: 0.5; cursor: not-allowed; }
+.distance-status {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.distance-status.is-error { color: #B23B3B; }
+
+/* Distance shown on a browse/map card once "Search near me" is active */
+.card-distance {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.card-distance i { width: 13px; height: 13px; }
+
 /* -------------------------------- Results header --------------------------------- */
 .results-header {
   display: flex;
@@ -158,6 +188,109 @@
   flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 14px;
+}
+.results-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* ---------------------------------- View toggle ----------------------------------- */
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.view-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  padding: 8px 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.view-toggle-btn i { width: 15px; height: 15px; }
+.view-toggle-btn.active { background: var(--accent-soft); color: var(--accent); }
+.view-toggle-btn + .view-toggle-btn { border-left: 1px solid var(--border); }
+
+/* ----------------------------------- Map view -------------------------------------- */
+.map-view { margin-bottom: 20px; }
+.map-canvas {
+  width: 100%;
+  height: 420px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+}
+@media (min-width: 1024px) { .map-canvas { height: 520px; } }
+.map-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.map-hint i { width: 14px; height: 14px; }
+
+/* Leaflet popup content — mini listing preview card */
+.map-popup { width: 190px; font-family: var(--font-body); }
+.map-popup-media {
+  height: 90px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  background-size: cover;
+}
+.map-popup-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+  line-height: 1.3;
+}
+.map-popup-price { font-family: var(--font-mono); font-size: 13px; color: var(--accent); font-weight: 700; }
+.map-popup-loc { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+.map-popup-link {
+  display: block;
+  margin-top: 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 8px;
+  padding: 6px 0;
+  text-decoration: none;
+}
+
+/* Marka-tinted marker pin used by browse.js's map view */
+.marka-pin {
+  width: 28px;
+  height: 28px;
+  border-radius: 50% 50% 50% 0;
+  background: var(--accent);
+  transform: rotate(-45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  border: 2px solid #fff;
+}
+.marka-pin span {
+  transform: rotate(45deg);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
 }
 .results-count {
   font-size: 14px;
