@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Promote your ad — Marka</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/listing.css" />
+    <link rel="stylesheet" href="css/promote.css" />
+    <link rel="stylesheet" href="css/modal.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="shell">
+
+        <!-- Mobile / tablet top bar -->
+        <header class="topbar topbar--mobile">
+          <button class="icon-btn" id="menuBtn" aria-label="Menu">
+            <i data-lucide="menu"></i>
+          </button>
+          <div class="brand">
+            <span class="brand-mark">M</span>
+            <span class="brand-name">Marka</span>
+          </div>
+          <a class="icon-btn icon-btn--dot" data-notif-bell href="notifications.html" aria-label="Notifications">
+            <i data-lucide="bell"></i>
+          </a>
+        </header>
+
+        <!-- Desktop / laptop top nav -->
+        <header class="topbar topbar--desktop">
+          <div class="brand">
+            <span class="brand-mark brand-mark--lg">M</span>
+            <span class="brand-name brand-name--lg">Marka</span>
+          </div>
+          <nav class="nav-links" id="navLinks"></nav>
+          <div class="topbar-actions">
+            <a class="icon-btn icon-btn--dot" id="notificationsBtn" data-notif-bell href="notifications.html" aria-label="Notifications">
+              <i data-lucide="bell"></i>
+            </a>
+            <a class="icon-btn" id="messagesBtn" href="messages.html" aria-label="Messages">
+              <i data-lucide="message-circle"></i>
+            </a>
+            <a class="post-ad-btn" href="sell.html">
+              <i data-lucide="plus" class="accent-icon"></i> Post ad
+            </a>
+            <a class="avatar" href="profile.html" aria-label="Your profile">JD</a>
+          </div>
+        </header>
+
+        <!-- Breadcrumb -->
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+          <a href="index.html">Home</a>
+          <i data-lucide="chevron-right"></i>
+          <a href="profile.html">Profile</a>
+          <i data-lucide="chevron-right"></i>
+          <span aria-current="page">Promote ad</span>
+        </nav>
+
+        <main class="section" id="promoteContent">
+
+          <!-- Not-found / not-eligible state -->
+          <div class="empty-state" id="promoteEmpty" hidden>
+            <div class="empty-illustration"><i data-lucide="rocket"></i></div>
+            <h3 class="empty-title" id="promoteEmptyTitle">Ad not found</h3>
+            <p class="empty-text" id="promoteEmptyText">We couldn't find an ad to promote. Head back to your profile and pick one from My Listings.</p>
+            <a class="btn-primary" href="profile.html">
+              <i data-lucide="arrow-left"></i> Back to profile
+            </a>
+          </div>
+
+          <!-- Main promote form -->
+          <div id="promoteForm" hidden>
+            <h1 class="promote-section-title" style="margin-bottom:4px;">Promote your ad</h1>
+            <p class="promote-intro">Boosted ads get better placement and more views. Pick a plan below — you can cancel the boost any time from here.</p>
+
+            <div class="promote-listing" id="promoteListingPreview"></div>
+
+            <div class="promote-current" id="promoteCurrentPanel" hidden></div>
+
+            <h2 class="promote-section-title">Choose a plan</h2>
+            <div class="plan-grid" id="planGrid" role="radiogroup" aria-label="Promotion plan"></div>
+
+            <div class="promote-summary">
+              <span class="promote-summary-label" id="promoteSummaryLabel">Total</span>
+              <span class="promote-summary-total" id="promoteSummaryTotal"></span>
+            </div>
+
+            <button type="button" class="btn-primary promote-cta" id="promoteSubmitBtn">
+              <i data-lucide="rocket"></i> <span id="promoteSubmitLabel">Promote this ad</span>
+            </button>
+            <p class="promote-fineprint">This is a demo checkout — no real payment is made. Your boost is saved locally and can be removed any time.</p>
+          </div>
+
+          <!-- Confirmation state -->
+          <div class="promote-success" id="promoteSuccess" hidden>
+            <div class="promote-success-icon"><i data-lucide="check"></i></div>
+            <h2 class="promote-success-title">Your ad is boosted</h2>
+            <p class="promote-success-text" id="promoteSuccessText"></p>
+            <div class="promote-success-actions">
+              <a class="btn-primary" id="promoteViewListingBtn" href="#">
+                <i data-lucide="eye"></i> View listing
+              </a>
+              <a class="btn-secondary" href="profile.html">
+                <i data-lucide="layout-grid"></i> Back to My Listings
+              </a>
+            </div>
+          </div>
+        </main>
+
+        <!-- Bottom nav — mobile & tablet only; laptop/desktop use the top nav above -->
+        <nav class="bottom-nav" id="bottomNav"></nav>
+      </div>
+    </div>
+
+    <script src="js/common.js"></script>
+    <script src="js/messages-data.js"></script>
+    <script src="js/messages-store.js"></script>
+    <script src="js/notifications-data.js"></script>
+    <script src="js/notifications-store.js"></script>
+    <script src="js/listing-data.js"></script>
+    <script src="js/listings-store.js"></script>
+    <script src="js/profile-data.js"></script>
+    <script src="js/promotions-store.js"></script>
+    <script src="js/promote.js"></script>
+  </body>
+</html>

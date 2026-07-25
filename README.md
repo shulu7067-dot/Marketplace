@@ -12,10 +12,14 @@ index.html            Home page markup
 listing.html          Individual listing / product page markup
 profile.html          Signed-in user's profile page markup
 messages.html         Buyer ↔ seller chat inbox + conversation markup
+favorites.html        Dedicated "your saved listings" page
+promote.html          Boost/promote-an-ad checkout page
 css/style.css         Shared design tokens, layout, and home-page component styles
 css/listing.css       Listing-page-only components (breadcrumb, gallery, seller card, etc.)
 css/profile.css       Profile-page-only components (header, stats, tabs, reviews, settings)
 css/messages.css      Messages-page-only components (thread list, chat bubbles, composer)
+css/favorites.css     Favorites-page-only components (header, sort control)
+css/promote.css       Promote-page-only components (plan cards, order summary, success state)
 js/common.js          Shared nav data + render helpers used by every page
 js/script.js          Home page data + rendering + interactivity
 js/listing-data.js    Listing detail data (specs, gallery, seller, description)
@@ -26,6 +30,12 @@ js/messages-data.js   Seed conversation/message history for the chat demo
 js/messages-store.js  localStorage-backed chat store (send/receive, read
                        receipts, simulated online status + seller replies)
 js/messages.js         Messages page rendering + interactivity
+js/favorites-store.js  localStorage-backed favorites store shared by every
+                        page's heart button
+js/favorites.js         Favorites page rendering + sort + remove/clear-all
+js/promotions-store.js  localStorage-backed store for ad boosts (plans,
+                         active promotion per listing id)
+js/promote.js            Promote page rendering + plan selection + checkout
 ```
 
 ## Running it
@@ -77,3 +87,20 @@ icon in the desktop top nav to open `messages.html`.
   `browse.html`/`category.html` and the similar-listings row on
   `listing.html`; messaging/calling them is disabled. Manage or reverse
   blocks any time from Profile > Settings > Blocked users.
+- Favoriting (the heart button) is backed by `js/favorites-store.js` and
+  shared by every page that shows a card — home, browse, category, listing
+  (including similar listings), and profile. Favoriting something on any one
+  of them is reflected everywhere else and on `favorites.html`, the
+  dedicated page reachable from the bottom-nav Favorites tab (which also
+  shows a live count badge). `favorites.html` supports sorting and a
+  clear-all action, and drops any favorite whose seller has since been
+  blocked.
+- Promoting/boosting one of your own active ads is handled by
+  `js/promotions-store.js` and `promote.html`. Reach it via the rocket-icon
+  "Promote" button on an active listing card in Profile > My Listings, or
+  the "Promote this ad" button on a real posted ad's own `listing.html`
+  page. Three plans (Quick Bump / Featured / Top Ad) each set an expiring
+  boost; while active, the ad shows a "Boosted" tag (the same style the
+  demo Featured cards already use) on its owned-listing card and on its
+  `listing.html` gallery, and can be replaced or removed any time from
+  `promote.html`. This is a demo checkout — no real payment is taken.
