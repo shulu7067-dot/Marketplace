@@ -13,6 +13,7 @@ const BOTTOM_NAV = [
   { id: "home", label: "Home", icon: "home", href: "index.html" },
   { id: "favorites", label: "Favorites", icon: "heart" },
   { id: "sell", label: "Sell", icon: "plus", isSell: true, href: "sell.html" },
+  { id: "messages", label: "Chat", icon: "message-circle", href: "messages.html" },
   { id: "search", label: "Search", icon: "search", href: "browse.html" },
   { id: "profile", label: "Profile", icon: "user", href: "profile.html" },
 ];
@@ -116,11 +117,48 @@ function renderBottomNav(activeTab) {
     }
     const tag = n.href ? "a" : "button";
     const hrefAttr = n.href ? `href="${n.href}"` : "";
-    return `<${tag} class="nav-item ${active ? "active" : ""}" data-tab="${n.id}" ${hrefAttr}>
+    const badge =
+      n.id === "messages" && typeof getTotalUnreadCount === "function" && getTotalUnreadCount() > 0
+        ? `<span class="nav-badge" style="position:absolute;top:0;right:6px;">${getTotalUnreadCount()}</span>`
+        : "";
+    return `<${tag} class="nav-item ${active ? "active" : ""}" data-tab="${n.id}" ${hrefAttr} style="position:relative;">
       <i data-lucide="${n.icon}" ${active && n.id === "favorites" ? 'style="fill:currentColor"' : ""}></i>
       <span>${n.label}</span>
+      ${badge}
     </${tag}>`;
   }).join("");
   nav.innerHTML = "";
   nav.appendChild(inner);
+  applyMessagesTopbarBadge();
+}
+
+/* --------------------------- Messages topbar icon-btn --------------------------- */
+// The desktop topbar has its own "Message Seller" quick-access icon (next to
+// Notifications) — every page that includes it renders <button id="messagesBtn">.
+// This toggles its unread dot; safe to call even if messages-store.js or the
+// button itself isn't present on a given page.
+function applyMessagesTopbarBadge() {
+  const btn = document.getElementById("messagesBtn");
+  if (!btn) return;
+  const unread = typeof getTotalUnreadCount === "function" ? getTotalUnreadCount() : 0;
+  btn.classList.toggle("icon-btn--dot", unread > 0);
+}
+
+/* -------------------------- Notifications topbar bell icon ---------------------- */
+// The bell icon in both the mobile and desktop topbars (marked with
+// data-notif-bell) links to notifications.html and shows a live unread dot,
+// same idea as applyMessagesTopbarBadge above. Safe to call even if
+// notifications-store.js isn't loaded on a given page.
+function applyNotificationsTopbarBadge() {
+  const bells = document.querySelectorAll("[data-notif-bell]");
+  if (!bells.length) return;
+  const unread = typeof getTotalUnreadNotificationsCount === "function" ? getTotalUnreadNotificationsCount() : 0;
+  bells.forEach((bell) => bell.classList.toggle("icon-btn--dot", unread > 0));
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("marka:messages-updated", applyMessagesTopbarBadge);
+  window.addEventListener("marka:notifications-updated", applyNotificationsTopbarBadge);
+  document.addEventListener("DOMContentLoaded", applyMessagesTopbarBadge);
+  document.addEventListener("DOMContentLoaded", applyNotificationsTopbarBadge);
 }

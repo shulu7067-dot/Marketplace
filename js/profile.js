@@ -14,13 +14,88 @@ const state = {
   activeTab: "listings",
   listingStatus: "published", // "published" (shown as Active) | "pending" | "sold" | "expired" | "draft"
   savedView: "items", // "items" | "searches"
+  reviewSort: "recent", // "recent" | "highest" | "lowest"
 };
+
+/* ------------------------------ Local persistence ------------------------------
+   No backend yet, so edits made in the Edit profile / Get verified flows are
+   stashed in localStorage and re-applied onto the PROFILE object (js/profile-
+   data.js) on every load — same pattern as js/listings-store.js. */
+const PROFILE_OVERRIDES_KEY = "marka_profile_overrides_v1";
+const HELPFUL_REVIEWS_KEY = "marka_helpful_reviews_v1";
+
+function readProfileOverrides() {
+  try {
+    return JSON.parse(localStorage.getItem(PROFILE_OVERRIDES_KEY) || "null") || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeProfileOverrides(partial) {
+  const merged = { ...readProfileOverrides(), ...partial };
+  try {
+    localStorage.setItem(PROFILE_OVERRIDES_KEY, JSON.stringify(merged));
+  } catch {
+    // Storage full/unavailable — this is a local-only demo store, fail quietly.
+  }
+}
+
+function applyProfileOverrides() {
+  const o = readProfileOverrides();
+  if (o.name) PROFILE.name = o.name;
+  if (o.initials) PROFILE.initials = o.initials;
+  if (o.loc) PROFILE.loc = o.loc;
+  if (typeof o.bio === "string") PROFILE.bio = o.bio;
+  if (o.avatarGrad) PROFILE.avatarGrad = o.avatarGrad;
+  if (o.verificationSteps) PROFILE.verificationSteps = { ...PROFILE.verificationSteps, ...o.verificationSteps };
+  if (typeof o.verified === "boolean") PROFILE.verified = o.verified;
+}
+
+function readHelpfulSet() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(HELPFUL_REVIEWS_KEY) || "[]"));
+  } catch {
+    return new Set();
+  }
+}
+
+function toggleHelpful(reviewId) {
+  const set = readHelpfulSet();
+  if (set.has(reviewId)) set.delete(reviewId);
+  else set.add(reviewId);
+  try {
+    localStorage.setItem(HELPFUL_REVIEWS_KEY, JSON.stringify([...set]));
+  } catch {
+    // ignore
+  }
+}
+
+function initialsFromName(name) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return PROFILE.initials;
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0].toUpperCase())
+    .join("");
+}
 
 /* --------------------------------- Renderers ---------------------------------- */
 function renderHeader() {
-  document.getElementById("profileAvatar").textContent = PROFILE.initials;
+  const avatarEl = document.getElementById("profileAvatar");
+  avatarEl.textContent = PROFILE.initials;
+  avatarEl.style.background = PROFILE.avatarGrad
+    ? `linear-gradient(135deg, ${PROFILE.avatarGrad[0]}, ${PROFILE.avatarGrad[1]})`
+    : "";
   document.getElementById("profileName").textContent = PROFILE.name;
-  document.getElementById("profileVerified").hidden = !PROFILE.verified;
+
+  const verifiedBtn = document.getElementById("profileVerified");
+  verifiedBtn.classList.toggle("verified-tag--pending", !PROFILE.verified);
+  verifiedBtn.innerHTML = PROFILE.verified
+    ? `<i data-lucide="badge-check"></i> Verified`
+    : `<i data-lucide="shield"></i> Get verified`;
+  verifiedBtn.setAttribute("aria-label", PROFILE.verified ? "Verified seller — view details" : "Get verified");
+
   document.getElementById("profileLoc").textContent = PROFILE.loc;
   document.getElementById("profileSince").textContent = PROFILE.memberSince;
   document.getElementById("profileRating").textContent = PROFILE.rating.toFixed(1);
@@ -169,10 +244,55 @@ function renderSavedView() {
   document.getElementById("savedSearchesView").hidden = state.savedView !== "searches";
 }
 
+// Big average + 5→1 star breakdown bars, computed straight from
+// PROFILE_REVIEWS so it always matches what's actually listed below.
+function renderRatingSummary() {
+  const total = PROFILE_REVIEWS.length;
+  const avg = total ? PROFILE_REVIEWS.reduce((sum, r) => sum + r.rating, 0) / total : PROFILE.rating;
+  const counts = [5, 4, 3, 2, 1].map((star) => PROFILE_REVIEWS.filter((r) => r.rating === star).length);
+
+  document.getElementById("ratingSummary").innerHTML = `
+    <div class="rating-summary-score">
+      <span class="rating-summary-value">${avg.toFixed(1)}</span>
+      <div class="review-stars review-stars--lg">
+        ${Array.from({ length: 5 }, (_, i) => `<i data-lucide="star" class="${i < Math.round(avg) ? "star-filled" : ""}"></i>`).join("")}
+      </div>
+      <span class="rating-summary-count">${total} review${total === 1 ? "" : "s"}</span>
+    </div>
+    <div class="rating-summary-bars">
+      ${[5, 4, 3, 2, 1]
+        .map((star, i) => {
+          const count = counts[i];
+          const pct = total ? Math.round((count / total) * 100) : 0;
+          return `
+          <div class="rating-bar-row">
+            <span class="rating-bar-label">${star}<i data-lucide="star"></i></span>
+            <div class="rating-bar-track"><div class="rating-bar-fill" style="width:${pct}%"></div></div>
+            <span class="rating-bar-count">${count}</span>
+          </div>`;
+        })
+        .join("")}
+    </div>`;
+}
+
+function sortedReviews() {
+  const list = [...PROFILE_REVIEWS];
+  if (state.reviewSort === "highest") list.sort((a, b) => b.rating - a.rating);
+  else if (state.reviewSort === "lowest") list.sort((a, b) => a.rating - b.rating);
+  return list; // "recent" — demo data is already newest-first
+}
+
 function renderReviews() {
   const list = document.getElementById("reviewsList");
-  list.innerHTML = PROFILE_REVIEWS.map(
-    (r) => `
+  const helpfulSet = readHelpfulSet();
+  const total = PROFILE_REVIEWS.length;
+  document.getElementById("reviewsCount").textContent = `${total} review${total === 1 ? "" : "s"}`;
+
+  list.innerHTML = sortedReviews()
+    .map((r) => {
+      const iMarkedIt = helpfulSet.has(r.id);
+      const helpfulCount = (r.helpful || 0) + (iMarkedIt ? 1 : 0);
+      return `
     <div class="review-card">
       <div class="review-head">
         <div class="seller-avatar review-avatar">${r.initials}</div>
@@ -185,23 +305,34 @@ function renderReviews() {
         </div>
       </div>
       <p class="review-text">${r.text}</p>
-    </div>`
-  ).join("");
+      <button type="button" class="review-helpful ${iMarkedIt ? "review-helpful--active" : ""}" data-helpful-id="${r.id}">
+        <i data-lucide="thumbs-up"></i> Helpful${helpfulCount ? ` (${helpfulCount})` : ""}
+      </button>
+    </div>`;
+    })
+    .join("");
 }
 
 function renderSettings() {
   const list = document.getElementById("settingsList");
-  list.innerHTML = SETTINGS_ITEMS.map(
-    (item) => `
-    <button class="settings-item ${item.danger ? "settings-item--danger" : ""}" type="button">
+  list.innerHTML = SETTINGS_ITEMS.map((item) => {
+    const isVerification = item.key === "verification";
+    const hint = isVerification
+      ? PROFILE.verified
+        ? "You're a verified seller"
+        : "Verify your email, phone & ID"
+      : item.hint;
+    return `
+    <button class="settings-item ${item.danger ? "settings-item--danger" : ""}" type="button" data-settings-key="${item.key || ""}">
       <span class="settings-item-icon"><i data-lucide="${item.icon}"></i></span>
       <span class="settings-item-text">
         <span class="settings-item-label">${item.label}</span>
-        ${item.hint ? `<span class="settings-item-hint">${item.hint}</span>` : ""}
+        ${hint ? `<span class="settings-item-hint">${hint}</span>` : ""}
       </span>
+      ${isVerification && PROFILE.verified ? `<i data-lucide="badge-check" class="settings-item-badge"></i>` : ""}
       <i data-lucide="chevron-right" class="settings-item-chevron"></i>
-    </button>`
-  ).join("");
+    </button>`;
+  }).join("");
 }
 
 function renderTabs() {
@@ -223,6 +354,14 @@ function renderListingSubTabs() {
   });
 }
 
+function renderReviewSortTabs() {
+  document.querySelectorAll("#reviewsSort .sub-tab").forEach((tab) => {
+    const isActive = tab.dataset.reviewSort === state.reviewSort;
+    tab.classList.toggle("active", isActive);
+    tab.setAttribute("aria-selected", String(isActive));
+  });
+}
+
 function renderAll() {
   renderNavLinks(""); // no primary nav item is "current" on the profile page
   renderHeader();
@@ -230,10 +369,12 @@ function renderAll() {
   renderMyListings();
   renderFavorites();
   renderSavedSearches();
+  renderRatingSummary();
   renderReviews();
   renderSettings();
   renderTabs();
   renderListingSubTabs();
+  renderReviewSortTabs();
   renderSavedView();
   renderBottomNav("profile");
   refreshIcons();
@@ -274,18 +415,196 @@ async function handleDeleteSearch(id) {
   refreshIcons();
 }
 
+/* ------------------------------ Edit profile modal ----------------------------- */
+// GRAD_PALETTE (js/listings-store.js, loaded earlier on this page) already
+// holds the site's avatar-gradient swatches — reused here so a picked color
+// matches the ones auto-assigned to listing cards.
+function avatarSwatchesHTML(selected) {
+  return GRAD_PALETTE.map(([c1, c2], i) => {
+    const isSelected = selected && selected[0] === c1 && selected[1] === c2;
+    return `
+    <button type="button" class="avatar-swatch ${isSelected ? "avatar-swatch--active" : ""}"
+      style="background:linear-gradient(135deg, ${c1}, ${c2})"
+      data-swatch-index="${i}" aria-label="Avatar color ${i + 1}"></button>`;
+  }).join("");
+}
+
+function openEditProfileModal() {
+  let chosenGrad = PROFILE.avatarGrad;
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h2 class="modal-title">Edit profile</h2>
+        <button type="button" class="modal-close" aria-label="Close"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label" for="editName">Name</label>
+        <input class="form-input" id="editName" type="text" maxlength="60" value="${PROFILE.name}" />
+
+        <label class="field-label" for="editLoc">Location</label>
+        <input class="form-input" id="editLoc" type="text" maxlength="60" value="${PROFILE.loc}" />
+
+        <label class="field-label" for="editBio">Bio</label>
+        <textarea class="field-textarea" id="editBio" maxlength="280">${PROFILE.bio}</textarea>
+        <span class="field-char-count" id="editBioCount"></span>
+
+        <span class="field-label">Avatar color</span>
+        <div class="avatar-swatch-row" id="avatarSwatchRow">${avatarSwatchesHTML(chosenGrad)}</div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" data-action="cancel">Cancel</button>
+        <button type="button" class="btn-primary" data-action="save">Save changes</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  refreshIcons();
+  requestAnimationFrame(() => overlay.classList.add("open"));
+
+  const bioField = overlay.querySelector("#editBio");
+  const bioCount = overlay.querySelector("#editBioCount");
+  const updateBioCount = () => (bioCount.textContent = `${bioField.value.length}/280`);
+  updateBioCount();
+  bioField.addEventListener("input", updateBioCount);
+
+  function cleanup() {
+    overlay.classList.remove("open");
+    setTimeout(() => overlay.remove(), 200);
+  }
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay || e.target.closest(".modal-close") || e.target.closest('[data-action="cancel"]')) {
+      return cleanup();
+    }
+
+    const swatch = e.target.closest("[data-swatch-index]");
+    if (swatch) {
+      chosenGrad = GRAD_PALETTE[Number(swatch.dataset.swatchIndex)];
+      overlay.querySelectorAll(".avatar-swatch").forEach((el, i) => {
+        el.classList.toggle("avatar-swatch--active", i === Number(swatch.dataset.swatchIndex));
+      });
+      return;
+    }
+
+    if (e.target.closest('[data-action="save"]')) {
+      const name = overlay.querySelector("#editName").value.trim() || PROFILE.name;
+      const loc = overlay.querySelector("#editLoc").value.trim() || PROFILE.loc;
+      const bio = bioField.value.trim();
+
+      PROFILE.name = name;
+      PROFILE.initials = initialsFromName(name);
+      PROFILE.loc = loc;
+      PROFILE.bio = bio;
+      PROFILE.avatarGrad = chosenGrad;
+
+      writeProfileOverrides({
+        name,
+        initials: PROFILE.initials,
+        loc,
+        bio,
+        avatarGrad: chosenGrad,
+      });
+
+      renderHeader();
+      refreshIcons();
+      cleanup();
+    }
+  });
+}
+
+/* ----------------------------- Get verified modal ------------------------------- */
+function verificationStepsHTML(steps) {
+  const items = [
+    { key: "email", label: "Email address", desc: PROFILE.email, icon: "mail" },
+    { key: "phone", label: "Phone number", desc: "Confirm you can receive an SMS code", icon: "phone" },
+    { key: "id", label: "Government ID", desc: "Upload a photo ID to unlock the badge", icon: "id-card" },
+  ];
+  return items
+    .map((item) => {
+      const done = !!steps[item.key];
+      return `
+    <div class="verify-step ${done ? "verify-step--done" : ""}">
+      <span class="verify-step-icon"><i data-lucide="${done ? "check" : item.icon}"></i></span>
+      <span class="verify-step-text">
+        <span class="verify-step-label">${item.label}</span>
+        <span class="verify-step-desc">${done ? "Verified" : item.desc}</span>
+      </span>
+      ${done ? "" : `<button type="button" class="btn-secondary verify-step-btn" data-verify-step="${item.key}">${item.key === "id" ? "Upload" : "Verify"}</button>`}
+    </div>`;
+    })
+    .join("");
+}
+
+function openVerificationModal() {
+  const steps = { ...PROFILE.verificationSteps };
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  document.body.appendChild(overlay);
+
+  function paint() {
+    const allDone = steps.email && steps.phone && steps.id;
+    overlay.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <h2 class="modal-title">${allDone ? "You're verified" : "Get verified"}</h2>
+          <button type="button" class="modal-close" aria-label="Close"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-note">${
+            allDone
+              ? "Buyers can see you've confirmed your email, phone, and ID — your badge is live on your profile."
+              : "Complete these steps to earn the verified badge and build buyer trust."
+          }</p>
+          <div class="verify-steps">${verificationStepsHTML(steps)}</div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-primary" data-action="close">${allDone ? "Done" : "Close"}</button>
+        </div>
+      </div>`;
+    refreshIcons();
+  }
+  paint();
+  requestAnimationFrame(() => overlay.classList.add("open"));
+
+  function cleanup() {
+    overlay.classList.remove("open");
+    setTimeout(() => overlay.remove(), 200);
+  }
+
+  overlay.addEventListener("click", async (e) => {
+    if (e.target === overlay || e.target.closest(".modal-close") || e.target.closest('[data-action="close"]')) {
+      return cleanup();
+    }
+
+    const stepBtn = e.target.closest("[data-verify-step]");
+    if (stepBtn) {
+      const key = stepBtn.dataset.verifyStep;
+      stepBtn.disabled = true;
+      stepBtn.textContent = "…";
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      steps[key] = true;
+
+      const allDone = steps.email && steps.phone && steps.id;
+      PROFILE.verificationSteps = steps;
+      if (allDone) PROFILE.verified = true;
+      writeProfileOverrides({ verificationSteps: steps, verified: allDone ? true : PROFILE.verified });
+
+      renderHeader();
+      renderSettings();
+      refreshIcons();
+      paint();
+    }
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  applyProfileOverrides();
   renderAll();
 
   document.getElementById("editProfileBtn").addEventListener("click", () => {
-    const btn = document.getElementById("editProfileBtn");
-    const original = btn.innerHTML;
-    btn.innerHTML = `<i data-lucide="check"></i> Saved`;
-    refreshIcons();
-    setTimeout(() => {
-      btn.innerHTML = original;
-      refreshIcons();
-    }, 1600);
+    openEditProfileModal();
   });
 
   document.addEventListener("click", (e) => {
@@ -311,6 +630,35 @@ document.addEventListener("DOMContentLoaded", () => {
       state.savedView = savedSubTab.dataset.savedView;
       renderSavedView();
       refreshIcons();
+      return;
+    }
+
+    const sortTab = e.target.closest("[data-review-sort]");
+    if (sortTab) {
+      state.reviewSort = sortTab.dataset.reviewSort;
+      renderReviewSortTabs();
+      renderReviews();
+      refreshIcons();
+      return;
+    }
+
+    const helpfulBtn = e.target.closest("[data-helpful-id]");
+    if (helpfulBtn) {
+      toggleHelpful(helpfulBtn.dataset.helpfulId);
+      renderReviews();
+      refreshIcons();
+      return;
+    }
+
+    const verifiedBtn = e.target.closest("#profileVerified");
+    if (verifiedBtn) {
+      openVerificationModal();
+      return;
+    }
+
+    const settingsKeyBtn = e.target.closest('[data-settings-key="verification"]');
+    if (settingsKeyBtn) {
+      openVerificationModal();
       return;
     }
 

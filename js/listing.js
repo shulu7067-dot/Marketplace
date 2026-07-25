@@ -124,7 +124,7 @@ function renderActionArea(record) {
 
   wrap.innerHTML = `
     <div class="action-buttons">
-      <a class="btn-primary" id="messageSellerBtn" href="mailto:${record.seller.email}?subject=${encodeURIComponent(record.title)}">
+      <a class="btn-primary" id="messageSellerBtn" href="messages.html">
         <i data-lucide="message-circle"></i> Message Seller
       </a>
       <a class="btn-secondary" id="callSellerBtn" href="tel:${record.seller.phone.replace(/[^+\d]/g, "")}">
@@ -137,6 +137,21 @@ function renderActionArea(record) {
     <button class="btn-share btn-report" id="reportListingBtn" type="button">
       <i data-lucide="flag"></i> Report listing
     </button>`;
+
+  // Reuse an existing thread for this listing, or open a new one, then send
+  // straight to it — same idea as js/listings-store.js's findOrCreate pattern.
+  if (typeof findOrCreateConversation === "function") {
+    const firstImage = record.images && record.images[0];
+    const convId = findOrCreateConversation({
+      listingId: record.id,
+      listingTitle: record.title,
+      listingPrice: record.price,
+      listingGrad: Array.isArray(firstImage) ? firstImage : null,
+      listingImage: typeof firstImage === "string" ? firstImage : null,
+      seller: { name: record.seller.name, initials: record.seller.initials, online: false },
+    });
+    document.getElementById("messageSellerBtn").href = `messages.html?c=${convId}`;
+  }
 }
 
 function renderReportReasons() {
