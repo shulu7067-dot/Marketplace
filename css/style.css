@@ -572,6 +572,14 @@ i[data-lucide] {
   font-family: var(--font-mono);
 }
 
+/* Author rules like `.listings-grid{display:grid}` or `.empty-state{display:flex}`
+   normally beat the browser's default `[hidden]{display:none}` rule, so setting
+   el.hidden = true in JS silently did nothing on those elements. This restores
+   the expected behavior everywhere on the site. */
+[hidden] {
+  display: none !important;
+}
+
 /* -------------------------------- Listings ----------------------------------- */
 .listings-grid {
   display: grid;
