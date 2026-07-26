@@ -27,48 +27,120 @@
 @media (min-width: 1280px) { .browse-search { padding: 20px 40px 0; } }
 .browse-search .search-row { max-width: none; margin-top: 0; }
 
-/* ---------------------------------- Filter bar ---------------------------------- */
-.filter-bar {
+/* ------------------------------- Quick filter pills ------------------------------ */
+/* Replaces the old always-expanded filter bar with two compact pills
+   (Categories, Location) that each open a full-screen sheet — closer to how
+   Facebook Marketplace's search page works than a wall of dropdowns. */
+.quick-filters {
   display: flex;
   align-items: center;
   gap: 8px;
   overflow-x: auto;
-  padding-bottom: 4px;
   margin-top: 12px;
+  padding-bottom: 2px;
   scrollbar-width: none;
 }
-.filter-bar::-webkit-scrollbar { display: none; }
+.quick-filters::-webkit-scrollbar { display: none; }
 
-/* On narrow phones the filter bar starts collapsed to keep the page tidy;
-   the sliders button next to search (#filterToggleBtn) reveals it. From
-   640px up there's room for it to stay visible all the time. */
-@media (max-width: 639px) {
-  .filter-bar { display: none; }
-  .filter-bar.filter-bar--open { display: flex; }
-}
-
-.filter-select {
+.quick-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
-  min-width: 160px;
   min-height: 44px;
-  padding: 0 30px 0 14px;
-  border-radius: 12px;
+  padding: 0 14px;
+  border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-primary);
   font-family: var(--font-body);
-  font-size: 16px;
-  font-weight: 500;
-  outline: none;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238A8E9B' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  max-width: 220px;
 }
-@media (min-width: 1024px) { .filter-select { font-size: 13px; min-width: 148px; } }
+.quick-filter-btn span:not(.chevron) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.quick-filter-btn > i:first-child { width: 15px; height: 15px; color: var(--text-tertiary); flex-shrink: 0; }
+.quick-filter-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.quick-filter-btn.active > i:first-child { color: var(--accent); }
+.quick-filter-btn .chevron { width: 12px !important; height: 12px !important; margin-left: -2px; flex-shrink: 0; color: var(--text-tertiary); }
+
+/* ---------------------------- Full-screen sheets (Categories, Location, Filters) --- */
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--surface);
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.sheet-overlay.open { transform: translateY(0); }
+.sheet-overlay[hidden] { display: none !important; }
+body.sheet-open { overflow: hidden; }
+
+.sheet {
+  width: 100%;
+  max-width: 640px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+}
+
+.sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sheet-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--text-primary);
+  margin: 0;
+}
+.sheet-reset-link {
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+
+.sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 16px;
+}
+
+.sheet-footer {
+  display: flex;
+  gap: 10px;
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sheet-footer .btn-secondary,
+.sheet-footer .post-ad-btn { flex: 1; justify-content: center; }
+
+.sheet-field-group { margin-bottom: 20px; }
+.sheet-field-group:last-of-type { margin-bottom: 0; }
 
 .price-range-field {
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -81,7 +153,9 @@
   color: var(--text-tertiary);
 }
 .price-range-field input {
-  width: 60px;
+  width: 100%;
+  min-width: 0;
+  flex: 1;
   border: none;
   outline: none;
   background: none;
@@ -89,21 +163,109 @@
   font-size: 16px;
   color: var(--text-primary);
 }
-@media (min-width: 1024px) { .price-range-field input { font-size: 13px; width: 56px; } }
 .price-range-field input::placeholder { color: var(--text-tertiary); }
 /* Hide native number-input spin arrows so the two fields read as one control */
 .price-range-field input::-webkit-outer-spin-button,
 .price-range-field input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .price-range-field input[type="number"] { -moz-appearance: textfield; }
 
-.filter-apply-btn { flex-shrink: 0; }
+/* ------------------------------- Categories sheet tiles --------------------------- */
+.cat-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+@media (min-width: 480px) { .cat-tile-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 768px) { .cat-tile-grid { grid-template-columns: repeat(5, 1fr); } }
 
-.filter-save-btn { flex: none; flex-shrink: 0; white-space: nowrap; }
-.filter-save-btn:disabled { opacity: 0.7; }
-.filter-save-btn svg, .filter-save-btn i { color: var(--accent); }
+.cat-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 8px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: center;
+  font-family: var(--font-body);
+}
+.cat-tile.active { border-color: var(--accent); background: var(--accent-soft); }
+.cat-tile-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cat-tile-icon i { width: 20px; height: 20px; }
+.cat-tile-label { font-size: 12.5px; font-weight: 600; color: var(--text-primary); line-height: 1.25; }
+.cat-tile-count { font-size: 11px; color: var(--text-tertiary); }
 
-@media (min-width: 1024px) {
-  .filter-bar { flex-wrap: wrap; overflow-x: visible; }
+/* -------------------------------- Location sheet ----------------------------------- */
+.sheet-search-field { margin-bottom: 8px; }
+
+.location-suggestions {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 4px;
+  overflow: hidden;
+}
+.location-suggestions[hidden] { display: none; }
+.location-suggestion {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.location-suggestion:last-child { border-bottom: none; }
+.location-suggestion:hover, .location-suggestion:focus-visible { background: var(--surface-alt); }
+.location-suggestion i { width: 15px; height: 15px; color: var(--text-tertiary); flex-shrink: 0; margin-top: 1px; }
+
+.location-me-btn { width: 100%; justify-content: center; margin-top: 14px; }
+.location-status {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  margin-top: 8px;
+  min-height: 16px;
+}
+.location-status.is-error { color: #B23B3B; }
+.location-status.is-active { color: var(--accent); font-weight: 600; }
+
+.radius-block { margin-top: 26px; }
+.radius-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+.radius-value { font-family: var(--font-mono); color: var(--accent); }
+.radius-slider {
+  width: 100%;
+  accent-color: var(--accent);
+  height: 20px;
+}
+.radius-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
 }
 
 /* ------------------------------- Active filter chips ------------------------------ */
@@ -150,26 +312,7 @@
   padding: 6px 2px;
 }
 
-/* -------------------------------- Distance search --------------------------------- */
-.distance-bar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
-.distance-locate-btn { flex-shrink: 0; min-height: 40px; padding: 0 14px; font-size: 13px; }
-.distance-locate-btn.active { border-color: var(--accent); color: var(--accent); }
-.distance-locate-btn.active svg, .distance-locate-btn.active i { color: var(--accent); }
-.distance-radius-select { min-width: 150px; min-height: 40px; font-size: 13px; }
-.distance-radius-select:disabled { opacity: 0.5; cursor: not-allowed; }
-.distance-status {
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-.distance-status.is-error { color: #B23B3B; }
-
-/* Distance shown on a browse/map card once "Search near me" is active */
+/* Distance shown on a browse/map card once a location origin is set */
 .card-distance {
   display: inline-flex;
   align-items: center;
