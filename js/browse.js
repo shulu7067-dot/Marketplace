@@ -4,9 +4,15 @@
    the listing page. Shares NAV_LINKS / BOTTOM_NAV / priceStub() /
    favButtonHTML() / refreshIcons() with the rest of the site via js/common.js,
    and its dataset with js/browse-data.js.
+
+   Location works from a real, worldwide search (Nominatim) or the device's
+   GPS — there is no fixed list of provinces/cities to choose from. Category
+   and Location each open a full-screen sheet (like Facebook Marketplace's
+   pickers) that covers the whole page while it's open.
    ============================================================================ */
 
 const PER_PAGE = 4;
+const DEFAULT_RADIUS_KM = 25;
 
 function getRequestedCategory() {
   const params = new URLSearchParams(window.location.search);
@@ -37,33 +43,50 @@ function getRequestedOption(key, options, fallback) {
   return val && options.includes(val) ? val : fallback;
 }
 
+// A saved/shared search can carry a real lat/lng/radius/label in the URL
+// (see js/saved-searches-store.js's savedSearchURL) — restore that as the
+// starting origin instead of forcing a fresh location search.
+function getRequestedOrigin() {
+  const params = new URLSearchParams(window.location.search);
+  const lat = Number(params.get("lat"));
+  const lng = Number(params.get("lng"));
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng, label: params.get("loc") || "Saved location", isMe: false };
+}
+
 const state = {
   query: getRequestedQuery(),
   category: getRequestedCategory(), // e.g. browse.html?category=Electronics -> "Home > Electronics"
   minPrice: getRequestedNumber("min"),
   maxPrice: getRequestedNumber("max"),
   condition: getRequestedOption("condition", BROWSE_CONDITION_OPTIONS, "Any condition"),
-  location: getRequestedOption("location", BROWSE_LOCATION_OPTIONS, "All locations"),
-  province: getRequestedOption("province", BROWSE_PROVINCE_OPTIONS, "All provinces"),
-  city: "All cities",
-  nearMe: false,
-  radiusKm: DISTANCE_RADIUS_OPTIONS[2], // 25km default once "near me" is on
+  origin: getRequestedOrigin(), // { lat, lng, label, isMe } | null — "All locations" when null
+  radiusKm: getRequestedNumber("radius") || DEFAULT_RADIUS_KM,
   sortBy: "newest",
   view: "grid", // "grid" | "map"
   page: 1,
   favs: Object.fromEntries(getFavoriteIds().map((id) => [id, true])),
 };
 
+// Sheet-local draft state — only committed to `state` when "Apply" is
+// pressed, so opening the Location sheet and backing out with the close
+// button (or a click outside it) doesn't change anything.
+let pendingOrigin = state.origin;
+let pendingRadiusKm = state.radiusKm;
+
 let browseMap = null;
 let browseMapMarkers = [];
+let geocodeDebounce = null;
+let geocodeRequestId = 0;
 
 /* --------------------------------- Helpers ------------------------------------ */
-// Attaches a live distanceKm (and formatted label) to every listing once the
-// user's location is known — used by both the sort and the card badges.
+// Attaches a live distanceKm (and formatted label) to every listing once a
+// location origin (GPS or a searched place) is set — used by both the sort
+// and the card badges/map.
 function withDistances(list) {
-  if (userGeoState.status !== "granted") return list;
+  if (!state.origin) return list;
   return list.map((l) => {
-    const distanceKm = l.lat !== null && l.lng !== null ? haversineDistanceKm(userGeoState.lat, userGeoState.lng, l.lat, l.lng) : null;
+    const distanceKm = l.lat !== null && l.lng !== null ? haversineDistanceKm(state.origin.lat, state.origin.lng, l.lat, l.lng) : null;
     return { ...l, distanceKm };
   });
 }
@@ -76,16 +99,13 @@ function getFilteredListings() {
     if (state.minPrice !== null && l.priceValue < state.minPrice) return false;
     if (state.maxPrice !== null && l.priceValue > state.maxPrice) return false;
     if (state.condition !== "Any condition" && l.condition !== state.condition) return false;
-    if (state.location !== "All locations" && l.loc !== state.location) return false;
-    if (state.province !== "All provinces" && l.province !== state.province) return false;
-    if (state.city !== "All cities" && l.city !== state.city) return false;
     if (isUserBlocked(l.sellerName)) return false;
     return true;
   });
 
   list = withDistances(list);
 
-  if (state.nearMe && userGeoState.status === "granted") {
+  if (state.origin) {
     list = list.filter((l) => l.distanceKm === null || l.distanceKm <= state.radiusKm);
   }
 
@@ -108,20 +128,18 @@ function resetFilters() {
   state.minPrice = null;
   state.maxPrice = null;
   state.condition = "Any condition";
-  state.location = "All locations";
-  state.province = "All provinces";
-  state.city = "All cities";
-  state.nearMe = false;
+  state.origin = null;
+  state.radiusKm = DEFAULT_RADIUS_KM;
   state.page = 1;
+  pendingOrigin = null;
+  pendingRadiusKm = DEFAULT_RADIUS_KM;
   document.getElementById("browseSearch").value = "";
-  document.getElementById("filterCategory").value = "All categories";
   document.getElementById("filterPriceMin").value = "";
   document.getElementById("filterPriceMax").value = "";
   document.getElementById("filterCondition").value = "Any condition";
-  document.getElementById("filterLocation").value = "All locations";
-  document.getElementById("useMyLocationBtn").classList.remove("active");
-  document.getElementById("filterRadius").disabled = true;
-  document.getElementById("distanceStatus").textContent = "";
+  document.getElementById("locationSearchInput").value = "";
+  document.getElementById("locationStatus").textContent = "";
+  document.getElementById("locationStatus").classList.remove("is-error", "is-active");
   renderAll();
 }
 
@@ -135,50 +153,32 @@ function renderBreadcrumb() {
     <span aria-current="page">${current}</span>`;
 }
 
+function locationPillLabel() {
+  if (!state.origin) return "All locations";
+  const short = state.origin.label.split(",")[0].trim() || state.origin.label;
+  return `${state.origin.isMe ? "Near " : ""}${short} · ${state.radiusKm} km`;
+}
+
 function renderFilterOptions() {
-  const catSel = document.getElementById("filterCategory");
-  catSel.innerHTML = BROWSE_CATEGORY_OPTIONS.map((c) => `<option value="${c}">${c}</option>`).join("");
-  catSel.value = state.category;
+  document.getElementById("categoryFilterLabel").textContent = state.category === "All categories" ? "All categories" : state.category;
+  document.getElementById("openCategoriesBtn").classList.toggle("active", state.category !== "All categories");
+
+  document.getElementById("locationFilterLabel").textContent = locationPillLabel();
+  document.getElementById("openLocationBtn").classList.toggle("active", !!state.origin);
 
   const condSel = document.getElementById("filterCondition");
   condSel.innerHTML = BROWSE_CONDITION_OPTIONS.map((c) => `<option value="${c}">${c}</option>`).join("");
   condSel.value = state.condition;
 
-  const locSel = document.getElementById("filterLocation");
-  locSel.innerHTML = BROWSE_LOCATION_OPTIONS.map((l) => `<option value="${l}">${l}</option>`).join("");
-  locSel.value = state.location;
-
-  const provSel = document.getElementById("filterProvince");
-  provSel.innerHTML = BROWSE_PROVINCE_OPTIONS.map((code) => {
-    const p = findProvince(code);
-    return `<option value="${code}">${p ? p.name : code}</option>`;
-  }).join("");
-  provSel.value = state.province;
-
-  const citySel = document.getElementById("filterCity");
-  const cityOptions = getBrowseCitiesForProvince(state.province);
-  if (!cityOptions.includes(state.city)) state.city = "All cities";
-  citySel.innerHTML = cityOptions.map((c) => `<option value="${c}">${c}</option>`).join("");
-  citySel.value = state.city;
-  citySel.disabled = state.province === "All provinces";
-
-  const radiusSel = document.getElementById("filterRadius");
-  radiusSel.innerHTML = DISTANCE_RADIUS_OPTIONS.map((km) => `<option value="${km}">Within ${km} km</option>`).join("");
-  radiusSel.value = state.radiusKm;
-  radiusSel.disabled = userGeoState.status !== "granted";
-
   document.getElementById("filterPriceMin").value = state.minPrice ?? "";
   document.getElementById("filterPriceMax").value = state.maxPrice ?? "";
 
   const sortOptions = BROWSE_SORT_OPTIONS.slice();
-  if (userGeoState.status === "granted") sortOptions.push({ value: "distance", label: "Nearest to me" });
+  if (state.origin) sortOptions.push({ value: "distance", label: "Nearest to me" });
   else if (state.sortBy === "distance") state.sortBy = "newest";
   const sortSel = document.getElementById("resultsSort");
   sortSel.innerHTML = sortOptions.map((s) => `<option value="${s.value}">${s.label}</option>`).join("");
   sortSel.value = state.sortBy;
-
-  const locateBtn = document.getElementById("useMyLocationBtn");
-  locateBtn.classList.toggle("active", state.nearMe && userGeoState.status === "granted");
 }
 
 function renderChips() {
@@ -190,13 +190,7 @@ function renderChips() {
   else if (state.minPrice !== null) chips.push({ key: "price", label: `From ${formatPrice(state.minPrice)}` });
   else if (state.maxPrice !== null) chips.push({ key: "price", label: `Under ${formatPrice(state.maxPrice)}` });
   if (state.condition !== "Any condition") chips.push({ key: "condition", label: state.condition });
-  if (state.location !== "All locations") chips.push({ key: "location", label: state.location });
-  if (state.province !== "All provinces") {
-    const p = findProvince(state.province);
-    chips.push({ key: "province", label: p ? p.name : state.province });
-  }
-  if (state.city !== "All cities") chips.push({ key: "city", label: state.city });
-  if (state.nearMe && userGeoState.status === "granted") chips.push({ key: "nearMe", label: `Within ${state.radiusKm} km` });
+  if (state.origin) chips.push({ key: "origin", label: locationPillLabel() });
   if (state.query.trim()) chips.push({ key: "query", label: `"${state.query.trim()}"` });
 
   if (!chips.length) {
@@ -249,7 +243,7 @@ function renderGrid(pageItems) {
       <div class="listing-body">
         <div class="card-title truncate">${item.title}</div>
         <div class="card-loc"><i data-lucide="map-pin"></i><span>${item.loc}</span></div>
-        ${userGeoState.status === "granted" && item.distanceKm !== null ? `<div class="card-distance"><i data-lucide="navigation"></i>${formatDistance(item.distanceKm)}</div>` : ""}
+        ${state.origin && item.distanceKm !== null ? `<div class="card-distance"><i data-lucide="navigation"></i>${formatDistance(item.distanceKm)}</div>` : ""}
         <div class="card-footer">
           ${priceStub(item.price)}
           <span class="card-time">${formatShortAgo(item.hoursAgo)} ago</span>
@@ -390,7 +384,7 @@ function renderMapView(list) {
 
   withCoords.forEach((item) => {
     const marker = L.marker([item.lat, item.lng], { icon: markerIcon() }).addTo(map);
-    const distanceLabel = userGeoState.status === "granted" && item.distanceKm !== null ? `<div class="map-popup-loc">${formatDistance(item.distanceKm)}</div>` : "";
+    const distanceLabel = state.origin && item.distanceKm !== null ? `<div class="map-popup-loc">${formatDistance(item.distanceKm)}</div>` : "";
     marker.bindPopup(`
       <div class="map-popup">
         <div class="map-popup-media" style="background:linear-gradient(135deg, ${item.grad[0]}, ${item.grad[1]})"></div>
@@ -408,12 +402,12 @@ function renderMapView(list) {
 
   if (withCoords.length) {
     const bounds = L.latLngBounds(withCoords.map((l) => [l.lat, l.lng]));
-    if (userGeoState.status === "granted") bounds.extend([userGeoState.lat, userGeoState.lng]);
+    if (state.origin) bounds.extend([state.origin.lat, state.origin.lng]);
     map.fitBounds(bounds.pad(0.25), { maxZoom: 13 });
   }
 
-  if (userGeoState.status === "granted") {
-    L.circleMarker([userGeoState.lat, userGeoState.lng], {
+  if (state.origin) {
+    L.circleMarker([state.origin.lat, state.origin.lng], {
       radius: 7,
       color: "#2F5D62",
       fillColor: "#2F5D62",
@@ -421,8 +415,125 @@ function renderMapView(list) {
       weight: 2,
     })
       .addTo(map)
-      .bindPopup("You are here");
+      .bindPopup(state.origin.isMe ? "You are here" : "Search center");
   }
+}
+
+/* --------------------------------- Sheets (full-screen) ------------------------------- */
+// Shared open/close for the three full-screen pickers below — each covers the
+// whole page while open, same idea as Facebook Marketplace's category/location
+// pickers, so the person can focus on just that choice.
+function openSheet(id) {
+  const overlay = document.getElementById(id);
+  overlay.hidden = false;
+  document.body.classList.add("sheet-open");
+  requestAnimationFrame(() => overlay.classList.add("open"));
+}
+
+function closeSheet(id) {
+  const overlay = document.getElementById(id);
+  overlay.classList.remove("open");
+  document.body.classList.remove("sheet-open");
+  setTimeout(() => {
+    overlay.hidden = true;
+  }, 280);
+}
+
+function wireSheetDismiss(id, onClose) {
+  const overlay = document.getElementById(id);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) {
+      closeSheet(id);
+      if (onClose) onClose();
+    }
+  });
+}
+
+/* ------------------------------- Categories sheet -------------------------------- */
+function renderCategoryTiles() {
+  const grid = document.getElementById("catTileGrid");
+  const tiles = [
+    { slug: "", label: "All categories", icon: "grid-3x3", color: "#16213E", bg: "#E7EAF2" },
+    ...CATEGORY_DETAILS.map((c) => ({ slug: c.slug, label: c.label, icon: c.icon, color: c.color, bg: c.bg })),
+  ];
+  grid.innerHTML = tiles
+    .map((t) => {
+      const active = state.category === t.label || (t.label === "All categories" && state.category === "All categories");
+      const count = t.label === "All categories" ? BROWSE_LISTINGS.length : getCategoryListingCount(t.label);
+      return `
+      <button type="button" class="cat-tile ${active ? "active" : ""}" data-category="${t.label}">
+        <span class="cat-tile-icon" style="background:${t.bg}"><i data-lucide="${t.icon}" style="color:${t.color}"></i></span>
+        <span class="cat-tile-label">${t.label}</span>
+        <span class="cat-tile-count">${count}</span>
+      </button>`;
+    })
+    .join("");
+  refreshIcons();
+}
+
+/* -------------------------------- Location sheet ---------------------------------- */
+function updateRadiusLabel() {
+  document.getElementById("radiusValueLabel").textContent = `${pendingRadiusKm} km`;
+}
+
+function setLocationStatus(text, kind) {
+  const el = document.getElementById("locationStatus");
+  el.textContent = text;
+  el.classList.remove("is-error", "is-active");
+  if (kind) el.classList.add(kind);
+}
+
+function renderLocationSuggestions(results) {
+  const box = document.getElementById("locationSuggestions");
+  if (!results.length) {
+    box.hidden = true;
+    box.innerHTML = "";
+    return;
+  }
+  box.hidden = false;
+  box.innerHTML = results
+    .map(
+      (r, i) => `
+    <button type="button" class="location-suggestion" data-suggestion-index="${i}">
+      <i data-lucide="map-pin"></i><span>${r.label}</span>
+    </button>`
+    )
+    .join("");
+  refreshIcons();
+}
+
+// Free-text worldwide place search via OpenStreetMap's Nominatim — anyone can
+// type any town, city, neighbourhood or postcode on Earth, not just a fixed
+// list of seeded cities.
+async function geocodeSearch(query) {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&addressdetails=1&limit=6`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.map((d) => ({ label: d.display_name, lat: Number(d.lat), lng: Number(d.lng ?? d.lon) }));
+  } catch {
+    return [];
+  }
+}
+
+let lastGeocodeResults = [];
+
+function openLocationSheet() {
+  pendingOrigin = state.origin;
+  pendingRadiusKm = state.radiusKm;
+  document.getElementById("locationSearchInput").value = state.origin && !state.origin.isMe ? state.origin.label : "";
+  document.getElementById("radiusSlider").value = pendingRadiusKm;
+  updateRadiusLabel();
+  renderLocationSuggestions([]);
+  if (state.origin) {
+    setLocationStatus(state.origin.isMe ? `Using your current location` : `Set to ${state.origin.label}`, "is-active");
+  } else {
+    setLocationStatus("");
+  }
+  openSheet("locationSheet");
 }
 
 /* --------------------------------- Events ------------------------------------- */
@@ -463,88 +574,115 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 200);
   });
 
-  document.getElementById("filterCategory").addEventListener("change", (e) => {
-    state.category = e.target.value;
+  /* ------------------------------- Categories sheet ------------------------------- */
+  document.getElementById("openCategoriesBtn").addEventListener("click", () => {
+    renderCategoryTiles();
+    openSheet("categorySheet");
+  });
+  document.getElementById("categorySheetClose").addEventListener("click", () => closeSheet("categorySheet"));
+  wireSheetDismiss("categorySheet");
+  document.getElementById("catTileGrid").addEventListener("click", (e) => {
+    const tile = e.target.closest("[data-category]");
+    if (!tile) return;
+    state.category = tile.dataset.category;
     state.page = 1;
+    closeSheet("categorySheet");
     renderAll();
   });
+
+  /* -------------------------------- Location sheet -------------------------------- */
+  document.getElementById("openLocationBtn").addEventListener("click", openLocationSheet);
+  document.getElementById("locationSheetClose").addEventListener("click", () => closeSheet("locationSheet"));
+  wireSheetDismiss("locationSheet");
+
+  const locationInput = document.getElementById("locationSearchInput");
+  locationInput.addEventListener("input", (e) => {
+    const value = e.target.value.trim();
+    clearTimeout(geocodeDebounce);
+    if (value.length < 3) {
+      renderLocationSuggestions([]);
+      return;
+    }
+    geocodeDebounce = setTimeout(async () => {
+      const requestId = ++geocodeRequestId;
+      const results = await geocodeSearch(value);
+      if (requestId !== geocodeRequestId) return; // a newer keystroke superseded this request
+      lastGeocodeResults = results;
+      renderLocationSuggestions(results);
+    }, 350);
+  });
+
+  document.getElementById("locationSuggestions").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-suggestion-index]");
+    if (!btn) return;
+    const result = lastGeocodeResults[Number(btn.dataset.suggestionIndex)];
+    if (!result) return;
+    pendingOrigin = { lat: result.lat, lng: result.lng, label: result.label, isMe: false };
+    locationInput.value = result.label;
+    renderLocationSuggestions([]);
+    setLocationStatus(`Set to ${result.label}`, "is-active");
+  });
+
+  document.getElementById("locationUseMeBtn").addEventListener("click", async () => {
+    const btn = document.getElementById("locationUseMeBtn");
+    const label = document.getElementById("locationUseMeLabel");
+    label.textContent = "Locating…";
+    btn.disabled = true;
+    try {
+      await requestUserLocation();
+      // Reverse-geocode for a real, worldwide place name — works anywhere on
+      // Earth, unlike a fixed list of seeded demo metro areas.
+      const reverse = await reverseGeocode(userGeoState.lat, userGeoState.lng);
+      const realLabel = formatRealLocationLabel(reverse) || "Your current location";
+      pendingOrigin = { lat: userGeoState.lat, lng: userGeoState.lng, label: realLabel, isMe: true };
+      locationInput.value = "";
+      renderLocationSuggestions([]);
+      setLocationStatus(`Using your current location — ${realLabel}`, "is-active");
+      if (reverse && reverse.countryCode && typeof applyDetectedCountry === "function") {
+        applyDetectedCountry(reverse.countryCode);
+      }
+    } catch (err) {
+      setLocationStatus(userGeoState.error || "Couldn't get your location.", "is-error");
+    } finally {
+      label.textContent = "Use my current location";
+      btn.disabled = false;
+    }
+  });
+
+  const radiusSlider = document.getElementById("radiusSlider");
+  radiusSlider.addEventListener("input", (e) => {
+    pendingRadiusKm = Number(e.target.value);
+    updateRadiusLabel();
+  });
+
+  document.getElementById("locationClearBtn").addEventListener("click", () => {
+    pendingOrigin = null;
+    pendingRadiusKm = DEFAULT_RADIUS_KM;
+    state.origin = null;
+    state.radiusKm = DEFAULT_RADIUS_KM;
+    state.page = 1;
+    closeSheet("locationSheet");
+    renderAll();
+  });
+
+  document.getElementById("locationApplyBtn").addEventListener("click", () => {
+    state.origin = pendingOrigin;
+    state.radiusKm = pendingRadiusKm;
+    state.page = 1;
+    closeSheet("locationSheet");
+    renderAll();
+  });
+
+  /* --------------------------------- Filters sheet -------------------------------- */
+  document.getElementById("filterToggleBtn").addEventListener("click", () => openSheet("filtersSheet"));
+  document.getElementById("filtersSheetClose").addEventListener("click", () => closeSheet("filtersSheet"));
+  wireSheetDismiss("filtersSheet");
 
   document.getElementById("filterCondition").addEventListener("change", (e) => {
     state.condition = e.target.value;
     state.page = 1;
     renderAll();
   });
-
-  document.getElementById("filterLocation").addEventListener("change", (e) => {
-    state.location = e.target.value;
-    state.page = 1;
-    renderAll();
-  });
-
-  document.getElementById("filterProvince").addEventListener("change", (e) => {
-    state.province = e.target.value;
-    state.city = "All cities";
-    state.page = 1;
-    renderAll();
-  });
-
-  document.getElementById("filterCity").addEventListener("change", (e) => {
-    state.city = e.target.value;
-    state.page = 1;
-    renderAll();
-  });
-
-  document.getElementById("filterRadius").addEventListener("change", (e) => {
-    state.radiusKm = Number(e.target.value);
-    state.page = 1;
-    renderAll();
-  });
-
-  document.getElementById("useMyLocationBtn").addEventListener("click", async () => {
-    const btn = document.getElementById("useMyLocationBtn");
-    const label = document.getElementById("useMyLocationLabel");
-    const status = document.getElementById("distanceStatus");
-
-    if (state.nearMe && userGeoState.status === "granted") {
-      // Toggle off
-      state.nearMe = false;
-      btn.classList.remove("active");
-      status.textContent = "";
-      status.classList.remove("is-error");
-      renderAll();
-      return;
-    }
-
-    label.textContent = "Locating…";
-    btn.disabled = true;
-    status.classList.remove("is-error");
-    status.textContent = "";
-    try {
-      await requestUserLocation();
-      state.nearMe = true;
-      // Reverse-geocode for a real, worldwide place name — findNearestCity
-      // only recognizes the seeded demo metro areas, so using it here would
-      // mislabel anyone outside them as whichever of those happens to be
-      // closest (e.g. showing "Boston" to someone nowhere near it).
-      const reverse = await reverseGeocode(userGeoState.lat, userGeoState.lng);
-      const realLabel = formatRealLocationLabel(reverse);
-      status.textContent = realLabel ? `Near ${realLabel}` : "Location found";
-      if (reverse && reverse.countryCode && typeof applyDetectedCountry === "function") {
-        applyDetectedCountry(reverse.countryCode);
-      }
-    } catch (err) {
-      status.classList.add("is-error");
-      status.textContent = userGeoState.error || "Couldn't get your location.";
-    } finally {
-      label.textContent = "Search near me";
-      btn.disabled = false;
-      state.page = 1;
-      renderAll();
-    }
-  });
-
-  document.getElementById("gridViewBtn").addEventListener("click", () => setView("grid"));
-  document.getElementById("mapViewBtn").addEventListener("click", () => setView("map"));
 
   document.getElementById("resultsSort").addEventListener("change", (e) => {
     state.sortBy = e.target.value;
@@ -562,21 +700,16 @@ document.addEventListener("DOMContentLoaded", () => {
   minInput.addEventListener("change", applyPrice);
   maxInput.addEventListener("change", applyPrice);
 
-  document.getElementById("filterApplyBtn").addEventListener("click", () => {
+  document.getElementById("filtersApplyBtn").addEventListener("click", () => {
     applyPrice();
+    closeSheet("filtersSheet");
     document.getElementById("resultsSection").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
-  document.getElementById("filterToggleBtn").addEventListener("click", () => {
-    document.getElementById("filterBar").classList.toggle("filter-bar--open");
+  document.getElementById("filtersResetBtn").addEventListener("click", () => {
+    resetFilters();
+    closeSheet("filtersSheet");
   });
-
-  // index.html's hero filter button links here with ?filters=open so the
-  // filter bar is already expanded when the page lands, instead of making
-  // people tap the toggle a second time.
-  if (new URLSearchParams(window.location.search).get("filters") === "open") {
-    document.getElementById("filterBar").classList.add("filter-bar--open");
-  }
 
   document.getElementById("saveSearchBtn").addEventListener("click", () => {
     const btn = document.getElementById("saveSearchBtn");
@@ -592,6 +725,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 1600);
   });
 
+  document.getElementById("gridViewBtn").addEventListener("click", () => setView("grid"));
+  document.getElementById("mapViewBtn").addEventListener("click", () => setView("map"));
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    ["categorySheet", "locationSheet", "filtersSheet"].forEach((id) => {
+      const overlay = document.getElementById(id);
+      if (overlay && overlay.classList.contains("open")) closeSheet(id);
+    });
+  });
+
   document.addEventListener("click", (e) => {
     const chipRemove = e.target.closest("[data-chip-remove]");
     if (chipRemove) {
@@ -599,10 +743,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (key === "category") state.category = "All categories";
       if (key === "price") { state.minPrice = null; state.maxPrice = null; minInput.value = ""; maxInput.value = ""; }
       if (key === "condition") state.condition = "Any condition";
-      if (key === "location") state.location = "All locations";
-      if (key === "province") { state.province = "All provinces"; state.city = "All cities"; }
-      if (key === "city") state.city = "All cities";
-      if (key === "nearMe") { state.nearMe = false; document.getElementById("useMyLocationBtn").classList.remove("active"); }
+      if (key === "origin") { state.origin = null; state.radiusKm = DEFAULT_RADIUS_KM; pendingOrigin = null; pendingRadiusKm = DEFAULT_RADIUS_KM; }
       if (key === "query") { state.query = ""; searchInput.value = ""; }
       state.page = 1;
       renderAll();
@@ -656,6 +797,12 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   renderBottomNav("search");
+
+  // index.html's hero filter button links here with ?filters=open so the
+  // Filters sheet is already open when the page lands.
+  if (new URLSearchParams(window.location.search).get("filters") === "open") {
+    openSheet("filtersSheet");
+  }
 });
 
 window.addEventListener("marka:currency-changed", () => {

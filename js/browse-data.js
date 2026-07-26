@@ -58,22 +58,6 @@ function buildBrowseListings() {
 
 const BROWSE_LISTINGS = buildBrowseListings();
 
-const BROWSE_LOCATION_OPTIONS = ["All locations", ...new Set(BROWSE_LISTINGS.map((l) => l.loc))];
-
-// Province filter only lists provinces that actually have a listing, so the
-// dropdown never shows an empty result set; City filter is populated
-// dynamically from whichever province is selected (see js/browse.js).
-const BROWSE_PROVINCE_OPTIONS = [
-  "All provinces",
-  ...PROVINCES.filter((p) => BROWSE_LISTINGS.some((l) => l.province === p.code)).map((p) => p.code),
-];
-
-function getBrowseCitiesForProvince(provinceCode) {
-  if (!provinceCode || provinceCode === "All provinces") return ["All cities"];
-  const cities = new Set(BROWSE_LISTINGS.filter((l) => l.province === provinceCode).map((l) => l.city));
-  return ["All cities", ...cities];
-}
-
 // A fixed little "browsing history" for the Recently viewed row — independent
 // of the active filters, the way a real recently-viewed list would be.
 const RECENTLY_VIEWED_IDS = [104, 3, 106, 2];

@@ -60,10 +60,14 @@ function writeSavedSearches(list) {
 }
 
 // `filters` is the shape of browse.js's `state`: { query, category, minPrice,
-// maxPrice, condition, location, ... }. Only the search-defining fields are
-// kept — sortBy/page aren't part of what makes a search worth re-running.
+// maxPrice, condition, origin, radiusKm, ... }. Only the search-defining
+// fields are kept — sortBy/page aren't part of what makes a search worth
+// re-running. `location` stays a plain human-readable label (used by
+// savedSearchSummary below) but is now derived from a real searched place or
+// GPS fix — never a hardcoded province/city — via origin.lat/origin.lng.
 function saveSearch(filters) {
   const list = readSavedSearches();
+  const origin = filters.origin || null;
   const record = {
     id: newSavedSearchId(),
     query: (filters.query || "").trim(),
@@ -71,7 +75,11 @@ function saveSearch(filters) {
     minPrice: filters.minPrice ?? null,
     maxPrice: filters.maxPrice ?? null,
     condition: filters.condition || "Any condition",
-    location: filters.location || "All locations",
+    location: origin ? `Within ${filters.radiusKm ?? 25} km of ${origin.label}` : "All locations",
+    originLat: origin ? origin.lat : null,
+    originLng: origin ? origin.lng : null,
+    originLabel: origin ? origin.label : null,
+    radiusKm: origin ? filters.radiusKm ?? 25 : null,
     createdAt: new Date().toISOString(),
   };
   list.unshift(record);
@@ -110,6 +118,11 @@ function savedSearchURL(s) {
   if (s.minPrice != null) params.set("min", s.minPrice);
   if (s.maxPrice != null) params.set("max", s.maxPrice);
   if (s.condition && s.condition !== "Any condition") params.set("condition", s.condition);
-  if (s.location && s.location !== "All locations") params.set("location", s.location);
+  if (s.originLat != null && s.originLng != null) {
+    params.set("lat", s.originLat);
+    params.set("lng", s.originLng);
+    params.set("radius", s.radiusKm ?? 25);
+    if (s.originLabel) params.set("loc", s.originLabel);
+  }
   return `browse.html${params.toString() ? `?${params.toString()}` : ""}`;
 }
