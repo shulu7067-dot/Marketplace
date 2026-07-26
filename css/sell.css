@@ -211,29 +211,132 @@
 .sell-toast svg, .sell-toast i { width: 16px; height: 16px; }
 .sell-toast[hidden] { display: none; }
 
-/* ------------------------------ GPS location picker ------------------------------ */
-.form-locate-btn {
-  display: inline-flex;
+/* ------------------------------ Location trigger ------------------------------ */
+/* Replaces the old Province/City selects + inline search/map: a single row
+   that opens the Facebook-style location modal below. */
+.form-location-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-primary);
+  min-height: 44px;
+  text-align: left;
+}
+.form-location-trigger:hover { border-color: var(--secondary); }
+.form-location-trigger svg, .form-location-trigger i { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-tertiary); }
+.form-location-trigger span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.form-location-trigger.has-value span { color: var(--text-primary); }
+.form-location-trigger:not(.has-value) span { color: var(--text-tertiary); }
+.form-location-trigger-chevron { margin-left: auto; }
+
+/* ------------------------------ Location modal (Facebook-style) ------------------------------ */
+.modal--location { display: flex; flex-direction: column; }
+
+.location-modal-search {
+  position: relative;
+  display: flex;
   align-items: center;
   gap: 8px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
   min-height: 44px;
-  padding: 0 16px;
-  font-size: 14px;
-  margin-bottom: 6px;
+  margin-bottom: 14px;
 }
-.form-locate-btn.active { border-color: var(--secondary); color: var(--secondary); }
-.form-locate-btn.active svg, .form-locate-btn.active i { color: var(--secondary); }
-.form-locate-status {
+.location-modal-search svg, .location-modal-search > i { width: 16px; height: 16px; color: var(--text-tertiary); flex-shrink: 0; }
+.location-modal-search input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: none;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--text-primary);
+  min-height: 44px;
+}
+.location-modal-search input::placeholder { color: var(--text-tertiary); }
+.location-modal-search .form-location-suggestions { top: calc(100% + 6px); }
+
+.location-modal-map-wrap {
+  position: relative;
+  width: 100%;
+  height: clamp(260px, 46vh, 380px);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+}
+.location-modal-map { width: 100%; height: 100%; }
+
+/* Fixed pin overlay: the map pans underneath it, so the tip always marks the
+   exact centre of the viewport — same interaction as Facebook Marketplace's
+   "drag map to choose location" picker, rather than a draggable Leaflet
+   marker. */
+.location-modal-pin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  z-index: 500;
+  color: var(--accent);
+  pointer-events: none;
+  filter: drop-shadow(0 3px 4px rgba(22, 27, 44, 0.35));
+}
+.location-modal-pin svg, .location-modal-pin i { width: 34px; height: 34px; fill: var(--accent); }
+
+.location-modal-locate-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 500;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: none;
+  background: var(--surface);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(22, 27, 44, 0.2);
+}
+.location-modal-locate-btn svg, .location-modal-locate-btn i { width: 18px; height: 18px; }
+.location-modal-locate-btn.is-active { color: var(--secondary); }
+.location-modal-locate-btn.is-loading { opacity: 0.6; pointer-events: none; }
+
+.location-modal-drag-hint {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  background: rgba(22, 27, 44, 0.75);
+  color: #fff;
   font-size: 12px;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.location-modal-status {
+  font-size: 12.5px;
   color: var(--text-tertiary);
-  margin: 0 0 14px;
+  margin: 10px 0 0;
   min-height: 16px;
 }
-.form-locate-status.is-error { color: #B23B3B; }
-.form-locate-status.is-success { color: var(--secondary); }
+.location-modal-status.is-error { color: #B23B3B; }
+.location-modal-status.is-success { color: var(--secondary); }
 
-.form-location-group { position: relative; }
-.form-location-search { position: relative; }
+/* form-location-suggestions is shared by the location modal's search box */
 .form-location-suggestions {
   position: absolute;
   z-index: 20;
@@ -267,22 +370,3 @@
 .form-location-suggestions .loc-suggestion-empty { color: var(--text-tertiary); cursor: default; }
 .form-location-suggestions .loc-suggestion-empty:hover { background: none; }
 .form-location-hint { font-size: 12px; color: var(--text-tertiary); margin: 6px 0 0; }
-
-.form-map-wrap { margin-bottom: 18px; }
-.form-map-canvas {
-  width: 100%;
-  height: clamp(220px, 40vh, 340px);
-  border-radius: 14px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--surface-alt);
-}
-.form-map-hint {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-.form-map-hint i { width: 14px; height: 14px; flex-shrink: 0; }

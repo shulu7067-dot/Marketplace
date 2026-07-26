@@ -115,17 +115,16 @@ i[data-lucide] {
 .brand-name { font-family: var(--font-display); font-weight: 700; font-size: 19px; color: var(--text-primary); }
 .brand-name--lg { font-size: 21px; }
 
-.topbar--mobile {
+.topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 16px 12px;
 }
+
+.topbar--mobile { padding: 20px 16px 12px; }
 
 .topbar--desktop {
   display: none;
-  align-items: center;
-  justify-content: space-between;
   padding: 24px 32px 8px;
 }
 
