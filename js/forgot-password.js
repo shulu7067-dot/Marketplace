@@ -1,8 +1,8 @@
 /* ============================================================================
    MARKA — Forgot password page logic
-   Validates the email, "sends" a fake reset link (loading state via
-   runFakeSubmit), then swaps the request form for a success panel that
-   echoes back the address it was sent to.
+   Validates the email, sends a real Supabase password-reset email (the link
+   lands on reset-password.html), then swaps the request form for a success
+   panel that echoes back the address it was sent to.
    ============================================================================ */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -24,7 +24,14 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    runFakeSubmit(submitBtn, () => {
+    runFakeSubmit(submitBtn, async () => {
+      const { error } = await MarkaAuth.sendPasswordReset(emailInput.value.trim());
+
+      if (error) {
+        setFieldError(emailGroup, authErrorMessage(error));
+        return;
+      }
+
       sentToEmail.textContent = emailInput.value.trim();
       requestView.hidden = true;
       successView.hidden = false;

@@ -17,46 +17,134 @@ const state = {
   reviewSort: "recent", // "recent" | "highest" | "lowest"
 };
 
-/* ------------------------------ Local persistence ------------------------------
-   No backend yet, so edits made in the Edit profile / Get verified flows are
-   stashed in localStorage and re-applied onto the PROFILE object (js/profile-
-   data.js) on every load — same pattern as js/listings-store.js. */
-const PROFILE_OVERRIDES_KEY = "marka_profile_overrides_v1";
+/* ------------------------------ Supabase persistence ------------------------------
+   The signed-in user (js/auth.js requireAuth()) plus real load/save of the
+   PROFILE object (js/profile-data.js keeps the *shape* — field names, the
+   stats/reviews/settings-menu constants — but the actual values now come
+   from the "profiles" + "payment_methods" tables, see
+   supabase/migrations/0001_auth_and_profiles.sql). Every call site that used
+   to call writeProfileOverrides(partial) still does — it now pushes straight
+   to Supabase instead of localStorage. */
 const HELPFUL_REVIEWS_KEY = "marka_helpful_reviews_v1";
 
-function readProfileOverrides() {
-  try {
-    return JSON.parse(localStorage.getItem(PROFILE_OVERRIDES_KEY) || "null") || {};
-  } catch {
-    return {};
+let currentUser = null;
+
+// front-end PROFILE field name -> profiles table column name
+const PROFILE_TO_COLUMN = {
+  name: "full_name",
+  loc: "location",
+  bio: "bio",
+  phone: "phone",
+  avatarGrad: "avatar_gradient",
+  avatarImage: "avatar_url",
+  coverImage: "cover_url",
+  notificationPrefs: "notification_prefs",
+  twoFactorEnabled: "two_factor_enabled",
+  verificationSteps: "verification_steps",
+  verified: "verified",
+};
+
+// Fetches this user's profile + payment methods row(s) and maps them onto
+// the shared PROFILE object (js/profile-data.js) so the rest of this file —
+// which reads/writes PROFILE.* everywhere — doesn't need to change.
+async function loadProfileFromSupabase() {
+  const [{ data: row, error: profileError }, { data: cards, error: cardsError }] = await Promise.all([
+    supabaseClient.from("profiles").select("*").eq("id", currentUser.id).single(),
+    supabaseClient.from("payment_methods").select("*").eq("user_id", currentUser.id).order("created_at"),
+  ]);
+
+  if (profileError) {
+    console.error("Failed to load profile:", profileError.message);
+    return;
+  }
+
+  PROFILE.name = row.full_name || currentUser.email;
+  PROFILE.initials = row.full_name ? initialsFromName(row.full_name) : "?";
+  PROFILE.loc = row.location || "";
+  PROFILE.email = currentUser.email;
+  PROFILE.phone = row.phone || "";
+  PROFILE.bio = row.bio || "";
+  PROFILE.avatarGrad = row.avatar_gradient || null;
+  PROFILE.avatarImage = row.avatar_url || null;
+  PROFILE.coverImage = row.cover_url || null;
+  PROFILE.rating = Number(row.rating) || 0;
+  PROFILE.verified = !!row.verified;
+  PROFILE.verificationSteps = row.verification_steps || { email: false, phone: false, id: false };
+  PROFILE.notificationPrefs = row.notification_prefs || { push: true, email: true, sms: false };
+  PROFILE.twoFactorEnabled = !!row.two_factor_enabled;
+  PROFILE.payoutMethod = row.payout_method || "";
+  PROFILE.memberSince = `Member since ${new Date(row.member_since).getFullYear()}`;
+
+  if (!cardsError && cards) {
+    PROFILE.paymentMethods = cards.map((c) => ({ id: c.id, brand: c.brand, last4: c.last4, expiry: c.expiry }));
   }
 }
 
-function writeProfileOverrides(partial) {
-  const merged = { ...readProfileOverrides(), ...partial };
-  try {
-    localStorage.setItem(PROFILE_OVERRIDES_KEY, JSON.stringify(merged));
-  } catch {
-    // Storage full/unavailable — this is a local-only demo store, fail quietly.
+// Persists a partial PROFILE update to Supabase. `partial` uses the same
+// front-end field names PROFILE already uses (see PROFILE_TO_COLUMN above);
+// paymentMethods and email are handled separately since they don't live on
+// the profiles row itself.
+async function writeProfileOverrides(partial) {
+  if (!currentUser) return;
+
+  const columnUpdate = {};
+  for (const [key, value] of Object.entries(partial)) {
+    if (key === "initials" || key === "paymentMethods" || key === "email") continue;
+    if (key in PROFILE_TO_COLUMN) columnUpdate[PROFILE_TO_COLUMN[key]] = value;
   }
+
+  const tasks = [];
+
+  if (Object.keys(columnUpdate).length) {
+    tasks.push(
+      supabaseClient
+        .from("profiles")
+        .update(columnUpdate)
+        .eq("id", currentUser.id)
+        .then(({ error }) => {
+          if (error) console.error("Failed to save profile:", error.message);
+        })
+    );
+  }
+
+  // Email lives on auth.users, not profiles — changing it triggers a
+  // confirmation email to the new address before it actually takes effect.
+  if (typeof partial.email === "string" && partial.email !== currentUser.email) {
+    tasks.push(
+      supabaseClient.auth.updateUser({ email: partial.email }).then(({ error }) => {
+        if (error) console.error("Failed to update email:", error.message);
+      })
+    );
+  }
+
+  // Payment methods: this UI always hands us the full current list, so the
+  // simplest correct sync is delete-all-then-reinsert for this user.
+  if (Array.isArray(partial.paymentMethods)) {
+    tasks.push(
+      (async () => {
+        const { error: delError } = await supabaseClient.from("payment_methods").delete().eq("user_id", currentUser.id);
+        if (delError) return console.error("Failed to clear payment methods:", delError.message);
+        const rows = partial.paymentMethods.map((pm) => ({
+          user_id: currentUser.id,
+          brand: pm.brand,
+          last4: pm.last4,
+          expiry: pm.expiry,
+        }));
+        if (rows.length) {
+          const { error: insError } = await supabaseClient.from("payment_methods").insert(rows);
+          if (insError) console.error("Failed to save payment methods:", insError.message);
+        }
+      })()
+    );
+  }
+
+  await Promise.all(tasks);
 }
 
-function applyProfileOverrides() {
-  const o = readProfileOverrides();
-  if (o.name) PROFILE.name = o.name;
-  if (o.initials) PROFILE.initials = o.initials;
-  if (o.loc) PROFILE.loc = o.loc;
-  if (typeof o.bio === "string") PROFILE.bio = o.bio;
-  if (o.avatarGrad) PROFILE.avatarGrad = o.avatarGrad;
-  if (typeof o.avatarImage === "string" || o.avatarImage === null) PROFILE.avatarImage = o.avatarImage;
-  if (typeof o.coverImage === "string" || o.coverImage === null) PROFILE.coverImage = o.coverImage;
-  if (typeof o.email === "string") PROFILE.email = o.email;
-  if (typeof o.phone === "string") PROFILE.phone = o.phone;
-  if (o.notificationPrefs) PROFILE.notificationPrefs = { ...PROFILE.notificationPrefs, ...o.notificationPrefs };
-  if (typeof o.twoFactorEnabled === "boolean") PROFILE.twoFactorEnabled = o.twoFactorEnabled;
-  if (Array.isArray(o.paymentMethods)) PROFILE.paymentMethods = o.paymentMethods;
-  if (o.verificationSteps) PROFILE.verificationSteps = { ...PROFILE.verificationSteps, ...o.verificationSteps };
-  if (typeof o.verified === "boolean") PROFILE.verified = o.verified;
+// Kept as a no-op alias — earlier builds called this to re-apply localStorage
+// overrides onto PROFILE; loadProfileFromSupabase() now does that job.
+async function applyProfileOverrides() {
+  await loadProfileFromSupabase();
 }
 
 /* ------------------------------- Image helper ---------------------------------
@@ -105,6 +193,25 @@ function toggleHelpful(reviewId) {
   } catch {
     // ignore
   }
+}
+
+// Compresses `file` (see fileToCompressedDataURL above) then uploads it to
+// the given public storage bucket ("avatars" | "covers") under this user's
+// own folder (required by the storage RLS policies in
+// supabase/migrations/0001_auth_and_profiles.sql), returning the public URL.
+async function uploadProfileImage(bucket, file, maxDim, quality) {
+  const dataUrl = await fileToCompressedDataURL(file, maxDim, quality);
+  const blob = await (await fetch(dataUrl)).blob();
+  const path = `${currentUser.id}/${bucket === "avatars" ? "avatar" : "cover"}.jpg`;
+
+  const { error: uploadError } = await supabaseClient.storage
+    .from(bucket)
+    .upload(path, blob, { contentType: "image/jpeg", upsert: true });
+  if (uploadError) throw uploadError;
+
+  const { data } = supabaseClient.storage.from(bucket).getPublicUrl(path);
+  // Cache-bust so the new photo shows immediately instead of a cached old one.
+  return `${data.publicUrl}?v=${Date.now()}`;
 }
 
 function initialsFromName(name) {
@@ -712,31 +819,54 @@ function openEditProfileModal() {
     }
 
     if (e.target.closest('[data-action="save"]')) {
-      const name = overlay.querySelector("#editName").value.trim() || PROFILE.name;
-      const loc = overlay.querySelector("#editLoc").value.trim() || PROFILE.loc;
-      const bio = overlay.querySelector("#editBio").value.trim();
+      const saveBtn = overlay.querySelector('[data-action="save"]');
+      saveBtn.disabled = true;
 
-      PROFILE.name = name;
-      PROFILE.initials = initialsFromName(name);
-      PROFILE.loc = loc;
-      PROFILE.bio = bio;
-      PROFILE.avatarGrad = chosenGrad;
-      PROFILE.avatarImage = chosenAvatarImage;
-      PROFILE.coverImage = chosenCoverImage;
+      (async () => {
+        const name = overlay.querySelector("#editName").value.trim() || PROFILE.name;
+        const loc = overlay.querySelector("#editLoc").value.trim() || PROFILE.loc;
+        const bio = overlay.querySelector("#editBio").value.trim();
 
-      writeProfileOverrides({
-        name,
-        initials: PROFILE.initials,
-        loc,
-        bio,
-        avatarGrad: chosenGrad,
-        avatarImage: chosenAvatarImage,
-        coverImage: chosenCoverImage,
-      });
+        // A staged photo is a local data URL until now — upload it to
+        // Supabase Storage so what actually gets saved is a real public URL.
+        try {
+          if (chosenAvatarImage && chosenAvatarImage.startsWith("data:")) {
+            const blob = await (await fetch(chosenAvatarImage)).blob();
+            const path = `${currentUser.id}/avatar.jpg`;
+            await supabaseClient.storage.from("avatars").upload(path, blob, { contentType: "image/jpeg", upsert: true });
+            chosenAvatarImage = `${supabaseClient.storage.from("avatars").getPublicUrl(path).data.publicUrl}?v=${Date.now()}`;
+          }
+          if (chosenCoverImage && chosenCoverImage.startsWith("data:")) {
+            const blob = await (await fetch(chosenCoverImage)).blob();
+            const path = `${currentUser.id}/cover.jpg`;
+            await supabaseClient.storage.from("covers").upload(path, blob, { contentType: "image/jpeg", upsert: true });
+            chosenCoverImage = `${supabaseClient.storage.from("covers").getPublicUrl(path).data.publicUrl}?v=${Date.now()}`;
+          }
+        } catch (err) {
+          console.error("Photo upload failed:", err.message || err);
+        }
 
-      renderHeader();
-      refreshIcons();
-      cleanup();
+        PROFILE.name = name;
+        PROFILE.initials = initialsFromName(name);
+        PROFILE.loc = loc;
+        PROFILE.bio = bio;
+        PROFILE.avatarGrad = chosenGrad;
+        PROFILE.avatarImage = chosenAvatarImage;
+        PROFILE.coverImage = chosenCoverImage;
+
+        await writeProfileOverrides({
+          name,
+          loc,
+          bio,
+          avatarGrad: chosenGrad,
+          avatarImage: chosenAvatarImage,
+          coverImage: chosenCoverImage,
+        });
+
+        renderHeader();
+        refreshIcons();
+        cleanup();
+      })();
     }
   });
 }
@@ -1288,8 +1418,11 @@ function openPrivacyModal() {
   });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  applyProfileOverrides();
+document.addEventListener("DOMContentLoaded", async () => {
+  currentUser = await requireAuth();
+  if (!currentUser) return; // requireAuth() already redirected to login.html
+
+  await loadProfileFromSupabase();
   renderAll();
 
   document.getElementById("editProfileBtn").addEventListener("click", () => {
@@ -1307,13 +1440,13 @@ document.addEventListener("DOMContentLoaded", () => {
     avatarFileInput.value = "";
     if (!file) return;
     try {
-      const dataUrl = await fileToCompressedDataURL(file, 480, 0.85);
-      PROFILE.avatarImage = dataUrl;
-      writeProfileOverrides({ avatarImage: dataUrl });
+      const url = await uploadProfileImage("avatars", file, 480, 0.85);
+      PROFILE.avatarImage = url;
+      await writeProfileOverrides({ avatarImage: url });
       renderHeader();
       refreshIcons();
-    } catch {
-      // Unreadable/unsupported file — silently ignore in this local-only demo.
+    } catch (err) {
+      console.error("Avatar upload failed:", err.message || err);
     }
   });
 
@@ -1322,13 +1455,13 @@ document.addEventListener("DOMContentLoaded", () => {
     coverFileInput.value = "";
     if (!file) return;
     try {
-      const dataUrl = await fileToCompressedDataURL(file, 1200, 0.8);
-      PROFILE.coverImage = dataUrl;
-      writeProfileOverrides({ coverImage: dataUrl });
+      const url = await uploadProfileImage("covers", file, 1200, 0.8);
+      PROFILE.coverImage = url;
+      await writeProfileOverrides({ coverImage: url });
       renderHeader();
       refreshIcons();
-    } catch {
-      // Unreadable/unsupported file — silently ignore in this local-only demo.
+    } catch (err) {
+      console.error("Cover upload failed:", err.message || err);
     }
   });
 
@@ -1492,7 +1625,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const settingsItem = e.target.closest(".settings-item--danger");
     if (settingsItem) {
-      window.location.href = "login.html";
+      MarkaAuth.signOut().finally(() => {
+        window.location.href = "login.html";
+      });
     }
   });
 

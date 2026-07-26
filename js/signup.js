@@ -1,8 +1,10 @@
 /* ============================================================================
    MARKA — Sign up page logic
-   Validates name/email/password/confirm/terms client-side, then on "success"
-   sends the new user on to verify-email.html — the same flow a real signup
-   would kick off (mock, no backend, same pattern as js/login.js).
+   Validates name/email/password/confirm/terms client-side, creates the
+   account via Supabase Auth (full name goes into user metadata, which the
+   handle_new_user() DB trigger copies into public.profiles), then sends the
+   new user on to verify-email.html to enter the 6-digit code Supabase
+   emailed them.
    ============================================================================ */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -49,13 +51,28 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (!valid) return;
 
-    runFakeSubmit(submitBtn, () => {
+    runFakeSubmit(submitBtn, async () => {
+      const { error } = await MarkaAuth.signUp(
+        emailInput.value.trim(),
+        passwordInput.value,
+        nameInput.value.trim()
+      );
+
+      if (error) {
+        if (/already registered|already exists/i.test(error.message || "")) {
+          setFieldError(emailGroup, authErrorMessage(error));
+        } else {
+          setFieldError(passwordGroup, authErrorMessage(error));
+        }
+        return;
+      }
+
       toast.hidden = false;
       const email = encodeURIComponent(emailInput.value.trim());
       setTimeout(() => {
         window.location.href = `verify-email.html?email=${email}`;
       }, 700);
-    });
+    }, 600);
   });
 
   [nameInput, emailInput, passwordInput, confirmInput].forEach((input, i) => {

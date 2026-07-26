@@ -141,3 +141,96 @@ document.addEventListener("DOMContentLoaded", () => {
 window.addEventListener("load", () => {
   if (window.lucide) window.lucide.createIcons();
 });
+
+/* ============================================================================
+   Supabase-backed auth
+   Real signup/login/logout/password-reset/email-verification, on top of
+   supabaseClient from js/supabase-client.js (must be loaded first). Every
+   function returns { data, error } — callers check `error` and use
+   authErrorMessage() to show something readable in the existing
+   .form-error / toast UI instead of Supabase's raw error text.
+   ============================================================================ */
+
+const MarkaAuth = {
+  async signUp(email, password, fullName) {
+    return supabaseClient.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName } },
+    });
+  },
+
+  async signIn(email, password) {
+    return supabaseClient.auth.signInWithPassword({ email, password });
+  },
+
+  async signOut() {
+    return supabaseClient.auth.signOut();
+  },
+
+  // Sends a 6-digit code to email (verify-email.html's #codeRow). This is
+  // the same code Supabase's confirmation email carries as {{ .Token }}.
+  async verifySignupOtp(email, token) {
+    return supabaseClient.auth.verifyOtp({ email, token, type: "signup" });
+  },
+
+  async resendSignupOtp(email) {
+    return supabaseClient.auth.resend({ type: "signup", email });
+  },
+
+  // Sends the "reset your password" email. redirectTo must be an absolute
+  // URL to reset-password.html and must also be added to Supabase →
+  // Authentication → URL Configuration → Redirect URLs.
+  async sendPasswordReset(email) {
+    return supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}${window.location.pathname.replace(/[^/]*$/, "")}reset-password.html`,
+    });
+  },
+
+  // Called on reset-password.html once Supabase has put a recovery session
+  // in place (via the emailed link).
+  async updatePassword(newPassword) {
+    return supabaseClient.auth.updateUser({ password: newPassword });
+  },
+
+  async getSession() {
+    const { data } = await supabaseClient.auth.getSession();
+    return data.session;
+  },
+
+  async getCurrentUser() {
+    const { data } = await supabaseClient.auth.getUser();
+    return data.user;
+  },
+
+  onAuthStateChange(callback) {
+    return supabaseClient.auth.onAuthStateChange(callback);
+  },
+};
+
+// Friendlier copy for the handful of Supabase auth errors users actually hit.
+function authErrorMessage(error) {
+  if (!error) return "";
+  const msg = error.message || String(error);
+  if (/invalid login credentials/i.test(msg)) return "That email and password don't match our records.";
+  if (/email not confirmed/i.test(msg)) return "Please verify your email before logging in.";
+  if (/already registered|already exists/i.test(msg)) return "An account with that email already exists.";
+  if (/password should be at least/i.test(msg)) return "Password must be at least 8 characters.";
+  if (/rate limit/i.test(msg)) return "Too many attempts — please wait a moment and try again.";
+  if (/token has expired|invalid token|otp_expired/i.test(msg)) return "That code is invalid or has expired. Request a new one.";
+  return msg;
+}
+
+// Redirects to login.html (preserving the current page as ?next=) if there's
+// no signed-in user. Call at the top of any page's DOMContentLoaded that
+// requires auth (profile.html, sell.html, messages.html, etc.). Returns the
+// user object on success so callers don't need a second getCurrentUser() call.
+async function requireAuth() {
+  const user = await MarkaAuth.getCurrentUser();
+  if (!user) {
+    const next = encodeURIComponent(window.location.pathname.split("/").pop());
+    window.location.href = `login.html?next=${next}`;
+    return null;
+  }
+  return user;
+}
