@@ -15,6 +15,18 @@ let photos = []; // { url } — data URLs, so they persist through drafts/reload
 let editingId = null; // id of the user listing currently being edited, if any
 let editingStatus = null; // "draft" | "published" — status of that listing when loaded
 
+/* --------------------------------- Currency --------------------------------- */
+// The price field used to show a hardcoded "$" no matter what currency the
+// seller actually uses. It now reflects whatever currency is selected/detected
+// (Profile → Settings, or GPS/search-detected country) and stays in sync if
+// that changes mid-session.
+function renderPriceCurrency() {
+  const code = getSelectedCurrency();
+  document.getElementById("adPriceSymbol").textContent = currencySymbol(code);
+  const hint = document.getElementById("adPriceCurrencyHint");
+  if (hint) hint.textContent = `Enter the amount in ${code} — buyers will see it converted to their own currency.`;
+}
+
 /* --------------------------------- Selects --------------------------------- */
 function renderCategoryOptions() {
   const select = document.getElementById("adCategory");
@@ -91,6 +103,10 @@ function ensureSellMap(lat, lng) {
         : "Pin set — fill in the location field above.";
       statusEl.classList.remove("is-error");
     });
+    sellMap.on("click", async (e) => {
+      sellMapMarker.setLatLng(e.latlng);
+      sellMapMarker.fire("dragend");
+    });
   } else {
     sellMap.setView([lat, lng], 12);
     sellMapMarker.setLatLng([lat, lng]);
@@ -128,6 +144,105 @@ function applyLocation({ province, city, lat, lng, locationText, clearProvinceCi
     statusEl.classList.add("is-success");
   }
   refreshIcons();
+}
+
+/* ------------------------------ Location search ------------------------------ */
+let locationSearchResults = [];
+let locationSearchTimer = null;
+let locationSearchActiveIndex = -1;
+
+function renderLocationSuggestions() {
+  const list = document.getElementById("adLocationSuggestions");
+  if (!locationSearchResults.length) {
+    list.hidden = true;
+    list.innerHTML = "";
+    return;
+  }
+  list.innerHTML = locationSearchResults
+    .map(
+      (r, i) => `
+      <li data-index="${i}" class="${i === locationSearchActiveIndex ? "is-active" : ""}">
+        <i data-lucide="map-pin"></i><span>${r.label}</span>
+      </li>`
+    )
+    .join("");
+  list.hidden = false;
+  refreshIcons();
+}
+
+async function handleLocationInput(e) {
+  const query = e.target.value;
+  clearTimeout(locationSearchTimer);
+  locationSearchActiveIndex = -1;
+  if (query.trim().length < 3) {
+    locationSearchResults = [];
+    renderLocationSuggestions();
+    return;
+  }
+  locationSearchTimer = setTimeout(async () => {
+    locationSearchResults = await searchPlaces(query);
+    renderLocationSuggestions();
+  }, 350); // debounced so we don't hammer Nominatim on every keystroke
+}
+
+function selectLocationResult(result) {
+  const nearest = findNearestCity(result.lat, result.lng);
+  const isNearbyMatch = nearest && nearest.distanceKm <= NEARBY_CITY_THRESHOLD_KM;
+
+  applyLocation({
+    province: isNearbyMatch ? nearest.province : OTHER_PROVINCE_CODE,
+    city: isNearbyMatch ? nearest.city : "Other (enter below)",
+    clearProvinceCity: false,
+    lat: result.lat,
+    lng: result.lng,
+    locationText: result.label,
+    statusMessage: `Pin set: ${result.label}`,
+  });
+
+  if (result.countryCode && typeof applyDetectedCountry === "function") {
+    applyDetectedCountry(result.countryCode);
+  }
+
+  locationSearchResults = [];
+  renderLocationSuggestions();
+}
+
+function initLocationSearch() {
+  const input = document.getElementById("adLocation");
+  const list = document.getElementById("adLocationSuggestions");
+
+  input.addEventListener("input", handleLocationInput);
+
+  input.addEventListener("keydown", (e) => {
+    if (!locationSearchResults.length) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      locationSearchActiveIndex = Math.min(locationSearchActiveIndex + 1, locationSearchResults.length - 1);
+      renderLocationSuggestions();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      locationSearchActiveIndex = Math.max(locationSearchActiveIndex - 1, 0);
+      renderLocationSuggestions();
+    } else if (e.key === "Enter" && locationSearchActiveIndex >= 0) {
+      e.preventDefault();
+      selectLocationResult(locationSearchResults[locationSearchActiveIndex]);
+    } else if (e.key === "Escape") {
+      locationSearchResults = [];
+      renderLocationSuggestions();
+    }
+  });
+
+  list.addEventListener("click", (e) => {
+    const item = e.target.closest("li[data-index]");
+    if (!item) return;
+    selectLocationResult(locationSearchResults[Number(item.dataset.index)]);
+  });
+
+  document.addEventListener("click", (e) => {
+    if (e.target === input || list.contains(e.target)) return;
+    locationSearchResults = [];
+    renderLocationSuggestions();
+  });
 }
 
 async function handleUseGps() {
@@ -238,13 +353,22 @@ async function handlePhotoInput(e) {
 
 /* ------------------------------ Form <-> data ------------------------------ */
 function gatherFormData() {
+  const enteredPrice = Number(document.getElementById("adPrice").value) || 0;
+  const currencyCode = getSelectedCurrency();
+  const rate = (CURRENCIES[currencyCode] && CURRENCIES[currencyCode].rateFromUSD) || 1;
+  // Every stored price is kept in the same internal USD baseline the rest of
+  // the app already assumes (see formatPrice/parseUSDAmount) — otherwise a
+  // price typed in Rand would get silently re-interpreted as that many US
+  // dollars the moment anyone viewed it in a different currency.
+  const usdPrice = enteredPrice / rate;
+
   return {
     id: editingId || undefined,
     title: document.getElementById("adTitle").value.trim(),
     category: document.getElementById("adCategory").value,
     condition: document.getElementById("adCondition").value,
     description: document.getElementById("adDescription").value.trim(),
-    price: document.getElementById("adPrice").value,
+    price: enteredPrice ? String(usdPrice) : "",
     location: document.getElementById("adLocation").value.trim(),
     province: sellLocation.province || document.getElementById("adProvince").value,
     city: sellLocation.city || document.getElementById("adCity").value,
@@ -263,7 +387,10 @@ function loadForEditing(id) {
 
   document.getElementById("adTitle").value = item.title || "";
   document.getElementById("adDescription").value = item.description || "";
-  document.getElementById("adPrice").value = item.price || "";
+  const currencyCode = getSelectedCurrency();
+  const rate = (CURRENCIES[currencyCode] && CURRENCIES[currencyCode].rateFromUSD) || 1;
+  const storedUsdPrice = Number(item.price) || 0;
+  document.getElementById("adPrice").value = storedUsdPrice ? Math.round(storedUsdPrice * rate) : "";
   document.getElementById("adLocation").value = item.location || "";
   document.getElementById("adCategory").value = item.category || "";
   document.getElementById("adCondition").value = item.condition || "";
@@ -409,6 +536,8 @@ document.addEventListener("DOMContentLoaded", () => {
   renderPhotoGrid();
   renderProvinceOptions();
   renderCityOptions();
+  renderPriceCurrency();
+  window.addEventListener("marka:currency-changed", renderPriceCurrency);
 
   const editId = new URLSearchParams(window.location.search).get("edit");
   if (editId) loadForEditing(editId);
@@ -430,6 +559,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("useGpsBtn").addEventListener("click", handleUseGps);
+  initLocationSearch();
 
   document.getElementById("previewBtn").addEventListener("click", openPreview);
   document.getElementById("previewModalClose").addEventListener("click", closePreview);

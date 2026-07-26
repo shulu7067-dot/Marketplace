@@ -166,31 +166,52 @@ const DISTANCE_RADIUS_OPTIONS = [5, 10, 25, 50, 100, 250];
 // and sell.js share one in-memory shape.
 const userGeoState = { lat: null, lng: null, status: "idle", error: null }; // status: idle|locating|granted|denied|error
 
-function requestUserLocation() {
+function getCurrentPositionOnce(options) {
   return new Promise((resolve, reject) => {
-    if (!("geolocation" in navigator)) {
-      userGeoState.status = "error";
-      userGeoState.error = "Geolocation isn't supported by this browser.";
-      reject(new Error(userGeoState.error));
-      return;
-    }
-    userGeoState.status = "locating";
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        userGeoState.lat = pos.coords.latitude;
-        userGeoState.lng = pos.coords.longitude;
-        userGeoState.status = "granted";
-        userGeoState.error = null;
-        resolve({ lat: userGeoState.lat, lng: userGeoState.lng });
-      },
-      (err) => {
-        userGeoState.status = err.code === err.PERMISSION_DENIED ? "denied" : "error";
-        userGeoState.error = err.message || "Couldn't determine your location.";
-        reject(err);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-    );
+    navigator.geolocation.getCurrentPosition(resolve, reject, options);
   });
+}
+
+async function requestUserLocation() {
+  if (!("geolocation" in navigator)) {
+    userGeoState.status = "error";
+    userGeoState.error = "Geolocation isn't supported by this browser.";
+    throw new Error(userGeoState.error);
+  }
+  userGeoState.status = "locating";
+
+  // enableHighAccuracy forces a GPS hardware fix, which is slow (or never
+  // arrives at all) indoors, in some in-app/embedded browsers, or on devices
+  // without a strong signal — that's the single biggest cause of "couldn't
+  // get your location" reports. Try the fast, network/Wi-Fi-based fix first;
+  // only fall back to a slower high-accuracy attempt if that one fails.
+  let pos;
+  try {
+    pos = await getCurrentPositionOnce({ enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 });
+  } catch (firstErr) {
+    if (firstErr.code === firstErr.PERMISSION_DENIED) {
+      userGeoState.status = "denied";
+      userGeoState.error =
+        "Location access is blocked for this site. Check your browser (or app)'s location permission settings, or search for your address above instead.";
+      throw firstErr;
+    }
+    try {
+      pos = await getCurrentPositionOnce({ enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+    } catch (secondErr) {
+      userGeoState.status = secondErr.code === secondErr.PERMISSION_DENIED ? "denied" : "error";
+      userGeoState.error =
+        secondErr.code === secondErr.PERMISSION_DENIED
+          ? "Location access is blocked for this site. Check your browser (or app)'s location permission settings, or search for your address above instead."
+          : "Couldn't get a location fix in time. You can retry, or just search for your address above.";
+      throw secondErr;
+    }
+  }
+
+  userGeoState.lat = pos.coords.latitude;
+  userGeoState.lng = pos.coords.longitude;
+  userGeoState.status = "granted";
+  userGeoState.error = null;
+  return { lat: userGeoState.lat, lng: userGeoState.lng };
 }
 
 // Best-effort reverse geocode via OpenStreetMap's free Nominatim API — used
@@ -214,6 +235,34 @@ async function reverseGeocode(lat, lng) {
     };
   } catch {
     return null; // offline or blocked — caller falls back to a generic message
+  }
+}
+
+// Forward geocode (free-text address/place search) via Nominatim — powers the
+// location search box on the Sell page so a seller can find and pin any real
+// address or area on Earth, instead of being limited to typing a plain string
+// into a text box that had no connection to the map at all.
+let searchPlacesAbortController = null;
+async function searchPlaces(query) {
+  const q = query.trim();
+  if (q.length < 3) return [];
+  if (searchPlacesAbortController) searchPlacesAbortController.abort();
+  searchPlacesAbortController = new AbortController();
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&q=${encodeURIComponent(q)}`,
+      { headers: { Accept: "application/json" }, signal: searchPlacesAbortController.signal }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.map((r) => ({
+      label: r.display_name,
+      lat: Number(r.lat),
+      lng: Number(r.lon),
+      countryCode: r.address && r.address.country_code ? r.address.country_code : null,
+    }));
+  } catch {
+    return []; // offline, blocked, or superseded by a newer keystroke
   }
 }
 

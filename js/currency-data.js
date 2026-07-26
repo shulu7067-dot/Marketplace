@@ -21,6 +21,27 @@
 
 const CURRENCY_STORAGE_KEY = "marka:currency";
 
+// Intl.NumberFormat's { style: "currency" } only shows a real symbol when the
+// *locale* has that currency as its own local currency in CLDR data — e.g.
+// formatting ZAR under "en-US" prints the bare ISO code "ZAR" instead of "R",
+// because en-US has no notion of what the Rand symbol looks like. Keeping an
+// explicit symbol table sidesteps that entirely, so every currency always
+// renders with a proper sign regardless of the visitor's browser locale.
+const CURRENCY_SYMBOLS = {
+  USD: "$", EUR: "€", GBP: "£", CAD: "$", AUD: "$", NZD: "$",
+  JPY: "¥", CNY: "¥", HKD: "$", SGD: "$", KRW: "₩",
+  INR: "₹", PKR: "₨", BDT: "৳", IDR: "Rp", PHP: "₱", VND: "₫", THB: "฿",
+  BRL: "R$", MXN: "$", ARS: "$",
+  ZAR: "R", NGN: "₦", KES: "KSh", EGP: "E£",
+  AED: "AED", SAR: "SAR", ILS: "₪", TRY: "₺", RUB: "₽",
+  CHF: "CHF", SEK: "kr", NOK: "kr", DKK: "kr", PLN: "zł",
+};
+
+function currencySymbol(currencyCode) {
+  const code = currencyCode || getSelectedCurrency();
+  return CURRENCY_SYMBOLS[code] || code;
+}
+
 const CURRENCIES = {
   USD: { name: "US Dollar", rateFromUSD: 1 },
   EUR: { name: "Euro", rateFromUSD: 0.92 },
@@ -164,13 +185,12 @@ function formatPrice(value, currencyCode) {
   if (usd === null) return typeof value === "string" ? value : "";
   const info = CURRENCIES[code] || CURRENCIES.USD;
   const converted = usd * info.rateFromUSD;
+  const maximumFractionDigits = converted >= 100 || Number.isInteger(converted) ? 0 : 2;
+  let amount;
   try {
-    return new Intl.NumberFormat(navigator.language || "en-US", {
-      style: "currency",
-      currency: code,
-      maximumFractionDigits: converted >= 100 || Number.isInteger(converted) ? 0 : 2,
-    }).format(converted);
+    amount = new Intl.NumberFormat(navigator.language || "en-US", { maximumFractionDigits }).format(converted);
   } catch {
-    return `${converted.toFixed(0)} ${code}`;
+    amount = converted.toFixed(maximumFractionDigits);
   }
+  return `${currencySymbol(code)} ${amount}`;
 }
