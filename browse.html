@@ -17,6 +17,8 @@
 
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/listing.css" />
+    <link rel="stylesheet" href="css/modal.css" />
+    <link rel="stylesheet" href="css/sell.css" />
     <link rel="stylesheet" href="css/browse.css" />
 
     <!-- Map view (Leaflet + OpenStreetMap tiles) -->
@@ -72,53 +74,23 @@
               <i data-lucide="search" class="search-icon"></i>
               <input type="text" id="browseSearch" placeholder="Search bikes, homes, phones…" aria-label="Search listings" />
             </div>
-            <button class="filter-btn" id="filterToggleBtn" aria-label="Toggle filters">
+            <button class="filter-btn" id="filterToggleBtn" aria-label="Open filters">
               <i data-lucide="sliders-horizontal"></i>
             </button>
           </div>
 
-          <!-- Filter bar -->
-          <div class="filter-bar" id="filterBar">
-            <label class="sr-only" for="filterCategory">Category</label>
-            <select class="filter-select" id="filterCategory" aria-label="Category"></select>
-
-            <div class="price-range-field" role="group" aria-label="Price range">
-              <span>$</span>
-              <input type="number" id="filterPriceMin" min="0" placeholder="Min" inputmode="numeric" aria-label="Minimum price" />
-              <span aria-hidden="true">–</span>
-              <span>$</span>
-              <input type="number" id="filterPriceMax" min="0" placeholder="Max" inputmode="numeric" aria-label="Maximum price" />
-            </div>
-
-            <label class="sr-only" for="filterCondition">Condition</label>
-            <select class="filter-select" id="filterCondition" aria-label="Condition"></select>
-
-            <label class="sr-only" for="filterLocation">Location</label>
-            <select class="filter-select" id="filterLocation" aria-label="Location"></select>
-
-            <label class="sr-only" for="filterProvince">Province</label>
-            <select class="filter-select" id="filterProvince" aria-label="Province"></select>
-
-            <label class="sr-only" for="filterCity">City</label>
-            <select class="filter-select" id="filterCity" aria-label="City"></select>
-
-            <button class="post-ad-btn filter-apply-btn" id="filterApplyBtn">
-              <i data-lucide="sliders-horizontal"></i> Filter
+          <!-- Quick filter pills — tapping either opens a full-screen sheet -->
+          <div class="quick-filters" id="quickFilters">
+            <button type="button" class="quick-filter-btn" id="openCategoriesBtn" aria-haspopup="dialog">
+              <i data-lucide="layout-grid"></i>
+              <span id="categoryFilterLabel">All categories</span>
+              <i data-lucide="chevron-down" class="chevron"></i>
             </button>
-
-            <button class="btn-secondary filter-save-btn" id="saveSearchBtn" type="button">
-              <i data-lucide="bookmark"></i> Save search
+            <button type="button" class="quick-filter-btn" id="openLocationBtn" aria-haspopup="dialog">
+              <i data-lucide="map-pin"></i>
+              <span id="locationFilterLabel">All locations</span>
+              <i data-lucide="chevron-down" class="chevron"></i>
             </button>
-          </div>
-
-          <!-- Distance search -->
-          <div class="distance-bar" id="distanceBar">
-            <button class="btn-secondary distance-locate-btn" id="useMyLocationBtn" type="button">
-              <i data-lucide="locate-fixed"></i> <span id="useMyLocationLabel">Search near me</span>
-            </button>
-            <label class="sr-only" for="filterRadius">Distance</label>
-            <select class="filter-select distance-radius-select" id="filterRadius" aria-label="Distance radius" disabled></select>
-            <span class="distance-status" id="distanceStatus" aria-live="polite"></span>
           </div>
 
           <!-- Active filter chips -->
@@ -129,20 +101,13 @@
         <section class="section section--latest" id="resultsSection">
           <div class="results-header">
             <div class="results-count" id="resultsCount" aria-live="polite"></div>
-            <div class="results-header-actions">
-              <div class="view-toggle" id="viewToggle" role="group" aria-label="Results view">
-                <button type="button" class="view-toggle-btn active" id="gridViewBtn" aria-pressed="true">
-                  <i data-lucide="layout-grid"></i> Grid
-                </button>
-                <button type="button" class="view-toggle-btn" id="mapViewBtn" aria-pressed="false">
-                  <i data-lucide="map"></i> Map
-                </button>
-              </div>
-              <div class="results-sort-label">
-                <span>Sort by</span>
-                <label class="sr-only" for="resultsSort">Sort results</label>
-                <select class="filter-select" id="resultsSort" aria-label="Sort results"></select>
-              </div>
+            <div class="view-toggle" id="viewToggle" role="group" aria-label="Results view">
+              <button type="button" class="view-toggle-btn active" id="gridViewBtn" aria-pressed="true">
+                <i data-lucide="layout-grid"></i> Grid
+              </button>
+              <button type="button" class="view-toggle-btn" id="mapViewBtn" aria-pressed="false">
+                <i data-lucide="map"></i> Map
+              </button>
             </div>
           </div>
 
@@ -189,24 +154,24 @@
                 <div class="footer-col-title">Marketplace</div>
                 <ul>
                   <li><a href="browse.html">Browse listings</a></li>
-                  <li><a href="index.html">Categories</a></li>
-                  <li><a href="#">Post an ad</a></li>
+                  <li><a href="categories.html">Categories</a></li>
+                  <li><a href="sell.html">Post an ad</a></li>
                 </ul>
               </div>
               <div>
                 <div class="footer-col-title">Company</div>
                 <ul>
-                  <li><a href="#">About</a></li>
-                  <li><a href="#">Blog</a></li>
-                  <li><a href="#">Contact</a></li>
+                  <li><a href="about.html">About</a></li>
+                  <li><a href="blog.html">Blog</a></li>
+                  <li><a href="contact.html">Contact</a></li>
                 </ul>
               </div>
               <div>
                 <div class="footer-col-title">Support</div>
                 <ul>
-                  <li><a href="#">Safety tips</a></li>
-                  <li><a href="#">Help center</a></li>
-                  <li><a href="#">Terms &amp; privacy</a></li>
+                  <li><a href="safety-tips.html">Safety tips</a></li>
+                  <li><a href="help-center.html">Help center</a></li>
+                  <li><a href="terms.html">Terms &amp; privacy</a></li>
                 </ul>
               </div>
             </div>
@@ -219,6 +184,102 @@
 
         <!-- Bottom nav — mobile & tablet only; laptop/desktop use the top nav above -->
         <nav class="bottom-nav" id="bottomNav"></nav>
+
+        <!-- Categories sheet — full-screen, like Facebook Marketplace's category picker -->
+        <div class="sheet-overlay" id="categorySheet" hidden>
+          <div class="sheet" role="dialog" aria-modal="true" aria-label="Categories">
+            <div class="sheet-header">
+              <button type="button" class="icon-btn" id="categorySheetClose" aria-label="Close">
+                <i data-lucide="x"></i>
+              </button>
+              <h2 class="sheet-title">Categories</h2>
+              <span style="width:32px" aria-hidden="true"></span>
+            </div>
+            <div class="sheet-body">
+              <div class="cat-tile-grid" id="catTileGrid"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Location sheet — search any place worldwide, use current location, or set a radius -->
+        <div class="sheet-overlay" id="locationSheet" hidden>
+          <div class="sheet" role="dialog" aria-modal="true" aria-label="Location">
+            <div class="sheet-header">
+              <button type="button" class="icon-btn" id="locationSheetClose" aria-label="Close">
+                <i data-lucide="x"></i>
+              </button>
+              <h2 class="sheet-title">Location</h2>
+              <span style="width:32px" aria-hidden="true"></span>
+            </div>
+            <div class="sheet-body">
+              <div class="search-field sheet-search-field">
+                <i data-lucide="search" class="search-icon"></i>
+                <input type="text" id="locationSearchInput" placeholder="Search any town, city or postcode…" aria-label="Search for a place" autocomplete="off" />
+              </div>
+              <div class="location-suggestions" id="locationSuggestions" hidden></div>
+
+              <button type="button" class="btn-secondary location-me-btn" id="locationUseMeBtn">
+                <i data-lucide="locate-fixed"></i> <span id="locationUseMeLabel">Use my current location</span>
+              </button>
+              <div class="location-status" id="locationStatus" aria-live="polite"></div>
+
+              <div class="radius-block">
+                <div class="radius-block-head">
+                  <span>Search radius</span>
+                  <span class="radius-value" id="radiusValueLabel">25 km</span>
+                </div>
+                <input type="range" id="radiusSlider" class="radius-slider" min="1" max="300" value="25" aria-label="Search radius in kilometres" />
+                <div class="radius-scale"><span>1 km</span><span>300 km</span></div>
+              </div>
+            </div>
+            <div class="sheet-footer">
+              <button type="button" class="btn-secondary" id="locationClearBtn">Clear</button>
+              <button type="button" class="post-ad-btn" id="locationApplyBtn">Apply</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filters sheet — price, condition, sort, plus save search -->
+        <div class="sheet-overlay" id="filtersSheet" hidden>
+          <div class="sheet" role="dialog" aria-modal="true" aria-label="Filters">
+            <div class="sheet-header">
+              <button type="button" class="icon-btn" id="filtersSheetClose" aria-label="Close">
+                <i data-lucide="x"></i>
+              </button>
+              <h2 class="sheet-title">Filters</h2>
+              <button type="button" class="sheet-reset-link" id="filtersResetBtn">Reset all</button>
+            </div>
+            <div class="sheet-body">
+              <div class="sheet-field-group">
+                <label class="field-label" for="resultsSort">Sort by</label>
+                <select class="form-select" id="resultsSort" aria-label="Sort results"></select>
+              </div>
+
+              <div class="sheet-field-group">
+                <span class="field-label">Price</span>
+                <div class="price-range-field" role="group" aria-label="Price range">
+                  <span>$</span>
+                  <input type="number" id="filterPriceMin" min="0" placeholder="Min" inputmode="numeric" aria-label="Minimum price" />
+                  <span aria-hidden="true">–</span>
+                  <span>$</span>
+                  <input type="number" id="filterPriceMax" min="0" placeholder="Max" inputmode="numeric" aria-label="Maximum price" />
+                </div>
+              </div>
+
+              <div class="sheet-field-group">
+                <label class="field-label" for="filterCondition">Condition</label>
+                <select class="form-select" id="filterCondition" aria-label="Condition"></select>
+              </div>
+
+              <button type="button" class="btn-secondary" id="saveSearchBtn" style="width:100%; justify-content:center;">
+                <i data-lucide="bookmark"></i> Save this search
+              </button>
+            </div>
+            <div class="sheet-footer">
+              <button type="button" class="post-ad-btn" id="filtersApplyBtn" style="flex:1; justify-content:center;">See results</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -232,6 +293,7 @@
     <script src="js/location-data.js"></script>
     <script src="js/analytics-store.js"></script>
     <script src="js/listing-data.js"></script>
+    <script src="js/categories-data.js"></script>
     <script src="js/browse-data.js"></script>
     <script src="js/blocked-users-store.js"></script>
     <script src="js/recently-viewed-store.js"></script>

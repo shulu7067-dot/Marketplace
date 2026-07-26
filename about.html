@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>About — Marka</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/listing.css" />
+    <link rel="stylesheet" href="css/static-page.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="shell">
+
+        <!-- Mobile / tablet top bar -->
+        <header class="topbar topbar--mobile">
+          <button class="icon-btn" id="menuBtn" aria-label="Menu">
+            <i data-lucide="menu"></i>
+          </button>
+          <div class="brand">
+            <span class="brand-mark">M</span>
+            <span class="brand-name">Marka</span>
+          </div>
+          <a class="icon-btn icon-btn--dot" data-notif-bell href="notifications.html" aria-label="Notifications">
+            <i data-lucide="bell"></i>
+          </a>
+        </header>
+
+        <!-- Desktop / laptop top nav -->
+        <header class="topbar topbar--desktop">
+          <div class="brand">
+            <span class="brand-mark brand-mark--lg">M</span>
+            <span class="brand-name brand-name--lg">Marka</span>
+          </div>
+          <nav class="nav-links" id="navLinks"></nav>
+          <div class="topbar-actions">
+            <a class="icon-btn icon-btn--dot" id="notificationsBtn" data-notif-bell href="notifications.html" aria-label="Notifications">
+              <i data-lucide="bell"></i>
+            </a>
+            <a class="icon-btn" id="messagesBtn" href="messages.html" aria-label="Messages">
+              <i data-lucide="message-circle"></i>
+            </a>
+            <a class="post-ad-btn" href="sell.html">
+              <i data-lucide="plus" class="accent-icon"></i> Post ad
+            </a>
+            <a class="avatar" href="profile.html" aria-label="Your profile">JD</a>
+          </div>
+        </header>
+
+        <!-- Breadcrumb -->
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+          <a href="index.html">Home</a>
+          <i data-lucide="chevron-right"></i>
+          <span aria-current="page">About</span>
+        </nav>
+
+        <main class="static-main">
+          <div class="static-heading">
+            <h1 class="static-page-title">About Marka</h1>
+            <p class="static-page-subtitle">A calmer way to buy and sell locally — homes, vehicles, bikes and more, from people near you.</p>
+          </div>
+
+          <section class="static-section">
+            <h2 class="static-section-title">Why we built this</h2>
+            <p>Most marketplaces bury you in noise — endless filters, listings from the other side of the world, and no real sense of who you're dealing with. Marka is built around the opposite idea: show people what's actually near them, make it easy to search anywhere they choose, and keep the whole experience calm and simple.</p>
+          </section>
+
+          <section class="static-section">
+            <h2 class="static-section-title">What matters to us</h2>
+            <ul>
+              <li><strong>Local by default.</strong> Search any place in the world, set your own radius, or just search near you.</li>
+              <li><strong>Real people.</strong> Verified sellers and a straightforward chat make it easy to trade with confidence.</li>
+              <li><strong>No clutter.</strong> One clear search, simple filters, and nothing you don't need.</li>
+            </ul>
+          </section>
+
+          <section class="static-section">
+            <h2 class="static-section-title">Get in touch</h2>
+            <p>Questions, feedback, or a partnership idea? Visit our <a href="contact.html">contact page</a> — we read everything.</p>
+          </section>
+        </main>
+
+        <!-- Bottom nav (mobile & tablet only) -->
+        <nav class="bottom-nav" id="bottomNav"></nav>
+      </div>
+    </div>
+
+    <script src="js/common.js"></script>
+    <script src="js/currency-data.js"></script>
+    <script src="js/analytics-store.js"></script>
+    <script src="js/favorites-store.js"></script>
+    <script src="js/messages-data.js"></script>
+    <script src="js/messages-store.js"></script>
+    <script src="js/notifications-data.js"></script>
+    <script src="js/notifications-store.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        renderNavLinks("");
+        renderBottomNav("");
+        refreshIcons();
+      });
+      window.addEventListener("load", refreshIcons);
+    </script>
+  </body>
+</html>
