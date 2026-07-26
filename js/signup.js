@@ -17,6 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const emailGroup = document.getElementById("signupEmailGroup");
   const passwordGroup = document.getElementById("signupPasswordGroup");
   const confirmGroup = document.getElementById("signupConfirmGroup");
+  const termsGroup = document.getElementById("signupTermsGroup");
 
   const submitBtn = document.getElementById("signupSubmitBtn");
   const toast = document.getElementById("signupToast");
@@ -43,8 +44,8 @@ document.addEventListener("DOMContentLoaded", () => {
       valid = false;
     }
     if (!termsInput.checked) {
+      setFieldError(termsGroup);
       valid = false;
-      termsInput.focus();
     }
     if (!valid) return;
 
@@ -59,5 +60,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   [nameInput, emailInput, passwordInput, confirmInput].forEach((input, i) => {
     input.addEventListener("input", () => clearFieldError([nameGroup, emailGroup, passwordGroup, confirmGroup][i]));
+  });
+
+  termsInput.addEventListener("change", () => {
+    if (termsInput.checked) clearFieldError(termsGroup);
   });
 });

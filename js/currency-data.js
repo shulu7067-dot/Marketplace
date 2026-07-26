@@ -174,6 +174,34 @@ function parseUSDAmount(value) {
   return Number.isNaN(num) ? null : num;
 }
 
+// navigator.language isn't guaranteed to be a valid BCP-47 tag Intl will
+// accept — some OS/locale configurations (e.g. a POSIX-style suffix like
+// "en-US@posix") produce a string that throws inside `new Intl.NumberFormat`.
+// Validate it once and cache the result, falling back to "en-US" instead of
+// letting every caller hit the same exception on every render.
+let cachedSafeLocale = null;
+function getSafeNumberLocale() {
+  if (cachedSafeLocale) return cachedSafeLocale;
+  const candidate = (navigator.language || navigator.userLanguage || "en-US").toString();
+  try {
+    // Throws for malformed tags without needing to format anything.
+    Intl.NumberFormat.supportedLocalesOf(candidate);
+    cachedSafeLocale = candidate;
+  } catch {
+    cachedSafeLocale = "en-US";
+  }
+  return cachedSafeLocale;
+}
+
+// Last-resort grouping if Intl.NumberFormat is entirely unavailable (very
+// old browsers) — inserts plain "," separators so a big number still reads
+// as "25,908,000" instead of "25908000", even without real locale support.
+function groupDigitsFallback(numStr) {
+  const [whole, frac] = numStr.split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return frac ? `${grouped}.${frac}` : grouped;
+}
+
 // The single choke point every price display goes through: accepts a raw
 // number or one of the app's pre-formatted "$..." demo strings (both treated
 // as USD), converts to the shopper's selected currency using the static rate
@@ -188,9 +216,9 @@ function formatPrice(value, currencyCode) {
   const maximumFractionDigits = converted >= 100 || Number.isInteger(converted) ? 0 : 2;
   let amount;
   try {
-    amount = new Intl.NumberFormat(navigator.language || "en-US", { maximumFractionDigits }).format(converted);
+    amount = new Intl.NumberFormat(getSafeNumberLocale(), { maximumFractionDigits }).format(converted);
   } catch {
-    amount = converted.toFixed(maximumFractionDigits);
+    amount = groupDigitsFallback(converted.toFixed(maximumFractionDigits));
   }
   return `${currencySymbol(code)} ${amount}`;
 }
