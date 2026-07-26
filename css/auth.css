@@ -108,6 +108,8 @@
 .form-error svg, .form-error i { width: 12px; height: 12px; }
 .form-group.has-error .form-input { border-color: #B0472D; }
 .form-group.has-error .form-error { display: flex; }
+.form-group.has-error .auth-check-row input[type="checkbox"] { outline: 2px solid #B0472D; outline-offset: 2px; }
+.form-group.has-error .auth-check-row label { color: #B0472D; }
 
 .field-hint-row {
   display: flex;
