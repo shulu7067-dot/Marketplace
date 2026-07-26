@@ -125,9 +125,10 @@
                 <div class="form-group">
                   <label class="form-label" for="adPrice">Price</label>
                   <div class="form-price-field">
-                    <span>$</span>
+                    <span id="adPriceSymbol">$</span>
                     <input type="number" id="adPrice" name="price" min="0" inputmode="numeric" placeholder="0" required />
                   </div>
+                  <p class="form-location-hint" id="adPriceCurrencyHint"></p>
                 </div>
               </div>
 
@@ -142,9 +143,13 @@
                 </div>
               </div>
 
-              <div class="form-group">
+              <div class="form-group form-location-group">
                 <label class="form-label" for="adLocation">Location (shown on your ad)</label>
-                <input class="form-input" type="text" id="adLocation" name="location" placeholder="e.g. Brooklyn, NY" required />
+                <div class="form-location-search">
+                  <input class="form-input" type="text" id="adLocation" name="location" placeholder="Search for an address, suburb or area…" autocomplete="off" required />
+                  <ul class="form-location-suggestions" id="adLocationSuggestions" hidden></ul>
+                </div>
+                <p class="form-location-hint">Start typing to search anywhere in the world, or drop a pin on the map below.</p>
               </div>
 
               <button type="button" class="btn-secondary form-locate-btn" id="useGpsBtn">
