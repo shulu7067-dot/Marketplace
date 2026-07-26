@@ -6,6 +6,37 @@
    already have.
    ============================================================================ */
 
+/* ------------------------------------ Filter tabs ---------------------------------- */
+/* Despite this file's header comment, .sub-tabs/.sub-tab were only ever
+   defined in profile.css — which this page doesn't load — so the All /
+   Messages / Offers filter row was rendering as plain unstyled buttons. */
+.sub-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  margin-bottom: 14px;
+  scrollbar-width: none;
+}
+.sub-tabs::-webkit-scrollbar { display: none; }
+.sub-tab {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  min-height: 32px;
+  white-space: nowrap;
+}
+.sub-tab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
 .notif-head {
   display: flex;
   align-items: center;
@@ -123,3 +154,20 @@
 }
 .notif-item-dismiss:hover { background: var(--border); color: var(--text-primary); }
 .notif-item-dismiss svg, .notif-item-dismiss i { width: 14px; height: 14px; }
+
+/* ------------------------------------ Empty state --------------------------------- */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 64px 20px;
+  text-align: center;
+  color: var(--text-tertiary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.empty-state i, .empty-state svg { width: 30px; height: 30px; }
+.empty-state p { margin: 0; font-size: 13.5px; }

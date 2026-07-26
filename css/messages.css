@@ -6,17 +6,43 @@
    both columns render side by side.
    ============================================================================ */
 
+/* The shell fills the viewport exactly (not just min-height) so .msg-shell
+   can flex to take up whatever space is left after the topbar/breadcrumb,
+   instead of guessing their combined height with a hardcoded calc() that
+   drifts out of sync the moment either one's height changes — that drift is
+   what left a gap of empty page background below the composer. */
+body.chat-page,
+body.chat-page .page {
+  height: 100dvh;
+  overflow: hidden;
+}
+body.chat-page .shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+body.chat-page .shell > *:not(.msg-shell) { flex-shrink: 0; }
+
 .msg-shell {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 76px);
-  min-height: 420px;
+  flex: 1;
+  min-height: 0;
   border-top: 1px solid var(--border);
 }
 @media (min-width: 1024px) {
-  .msg-shell { flex-direction: row; height: calc(100dvh - 132px); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin: 0 32px 40px; }
+  .msg-shell { flex-direction: row; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin: 0 32px 40px; }
 }
 @media (min-width: 1280px) { .msg-shell { margin: 0 40px 40px; } }
+
+/* Without an open thread, the mobile bottom-nav (fixed, not part of this
+   flex flow) sits on top of the shell — reserve room for it so the last
+   conversation in the list isn't hidden behind it. It's hidden outright
+   once a thread is open (see body.msg-chat-active .bottom-nav below). */
+@media (max-width: 1023px) {
+  body.chat-page:not(.msg-chat-active) .msg-sidebar { padding-bottom: 64px; }
+}
 
 /* ------------------------------- Sidebar / list --------------------------------- */
 .msg-sidebar {
@@ -239,23 +265,6 @@
   letter-spacing: 0.02em;
 }
 
-.msg-chat-listing {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  text-decoration: none;
-  color: inherit;
-  flex-shrink: 0;
-}
-.msg-chat-listing-thumb { width: 30px; height: 30px; border-radius: 6px; flex-shrink: 0; background-size: cover; background-position: center; }
-.msg-chat-listing-text { min-width: 0; }
-.msg-chat-listing-title { font-size: 12px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
-.msg-chat-listing-price { font-size: 11px; color: var(--accent); font-weight: 700; }
-
 .msg-listing-banner {
   display: flex;
   align-items: center;
@@ -264,12 +273,17 @@
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  text-decoration: none;
+  color: inherit;
 }
 .msg-listing-banner-thumb { width: 38px; height: 38px; border-radius: 8px; flex-shrink: 0; background-size: cover; background-position: center; }
 .msg-listing-banner-text { flex: 1; min-width: 0; }
 .msg-listing-banner-title { font-size: 12.5px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .msg-listing-banner-price { font-size: 12px; color: var(--accent); font-weight: 700; }
-.msg-listing-banner a.msg-listing-banner-link { font-size: 11.5px; color: var(--secondary); font-weight: 600; text-decoration: none; flex-shrink: 0; }
+/* This is a <span>, not an <a> — selector must not require the "a" tag or
+   it silently never matches, which is what left "View ad" rendering as a
+   plain unstyled (browser-default blue, underlined) link. */
+.msg-listing-banner-link { font-size: 11.5px; color: var(--secondary); font-weight: 600; text-decoration: none; flex-shrink: 0; }
 
 .msg-scroll {
   flex: 1;
