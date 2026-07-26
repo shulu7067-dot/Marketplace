@@ -45,114 +45,94 @@ function renderConditionOptions() {
     options.map((c) => `<option value="${c}">${c}</option>`).join("");
 }
 
-/* ------------------------------ Location / map ------------------------------ */
-let sellMap = null;
-let sellMapMarker = null;
-const sellLocation = { province: "", city: "", lat: null, lng: null };
+/* ------------------------------ Location picker (modal) ------------------------------ */
+// Facebook-style picker: a single "Location" trigger opens a modal containing
+// a search box and a pannable map with a pin fixed to the centre of the
+// viewport (see .location-modal-pin) — the location is whatever the map is
+// centred on, not a draggable marker. province/city are still derived and
+// stored (via findNearestCity) purely so existing listing data/filtering that
+// expects those fields keeps working; nothing about them is shown in the UI.
+let locModalMap = null;
+let locModalMoveTimer = null;
+let locModalSuppressMoveHandler = false; // true while we're panning programmatically (search/locate), not from a user drag
 
-function renderProvinceOptions() {
-  const select = document.getElementById("adProvince");
-  select.innerHTML =
-    `<option value="" disabled ${sellLocation.province ? "" : "selected"}>Choose a province/state</option>` +
-    getProvinceOptions().map((p) => `<option value="${p.code}">${p.name}</option>`).join("");
-  select.value = sellLocation.province || "";
-}
+const sellLocation = { province: "", city: "", lat: null, lng: null, locationText: "" };
+// Working copy edited while the modal is open; only copied into sellLocation on Apply.
+let locDraft = { province: "", city: "", lat: null, lng: null, locationText: "" };
 
-function renderCityOptions() {
-  const select = document.getElementById("adCity");
-  const cities = sellLocation.province ? getCityOptions(sellLocation.province) : [];
-  select.innerHTML =
-    `<option value="" disabled ${sellLocation.city ? "" : "selected"}>Choose a city</option>` +
-    cities.map((c) => `<option value="${c}">${c}</option>`).join("");
-  select.value = sellLocation.city || "";
-  select.disabled = !sellLocation.province;
-}
+const DEFAULT_MAP_CENTER = { lat: 20, lng: 0 };
+const DEFAULT_MAP_ZOOM = 2;
 
-function syncLocationText() {
-  if (sellLocation.province === OTHER_PROVINCE_CODE) return; // person types their own real place name instead
-  const p = findProvince(sellLocation.province);
-  if (sellLocation.city && p) {
-    document.getElementById("adLocation").value = `${sellLocation.city}, ${p.code}`;
+function updateLocationTrigger() {
+  const btn = document.getElementById("openLocationModalBtn");
+  const label = document.getElementById("locationTriggerText");
+  const hiddenInput = document.getElementById("adLocation");
+  if (sellLocation.locationText) {
+    label.textContent = sellLocation.locationText;
+    btn.classList.add("has-value");
+  } else {
+    label.textContent = "Add a location";
+    btn.classList.remove("has-value");
   }
+  hiddenInput.value = sellLocation.locationText || "";
 }
 
-function ensureSellMap(lat, lng) {
+function setLocModalStatus(message, kind) {
+  const status = document.getElementById("locModalStatus");
+  status.textContent = message || "";
+  status.classList.remove("is-error", "is-success");
+  if (kind) status.classList.add(kind === "error" ? "is-error" : "is-success");
+}
+
+function ensureLocModalMap(lat, lng, zoom) {
   if (typeof L === "undefined") return null;
-  document.getElementById("formMapWrap").hidden = false;
-  if (!sellMap) {
-    sellMap = L.map("sellMap", { scrollWheelZoom: false }).setView([lat, lng], 12);
+  if (!locModalMap) {
+    locModalMap = L.map("locModalMap", { scrollWheelZoom: true }).setView([lat, lng], zoom);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
-    }).addTo(sellMap);
-    sellMapMarker = L.marker([lat, lng], { draggable: true }).addTo(sellMap);
-    sellMapMarker.on("dragend", async () => {
-      const pos = sellMapMarker.getLatLng();
-      sellLocation.lat = pos.lat;
-      sellLocation.lng = pos.lng;
-      const statusEl = document.getElementById("gpsStatus");
-      statusEl.textContent = "Updating location…";
-      const reverse = await reverseGeocode(pos.lat, pos.lng);
-      const realLabel = formatRealLocationLabel(reverse);
-      const nearest = findNearestCity(pos.lat, pos.lng);
-      const isNearbyMatch = nearest && nearest.distanceKm <= NEARBY_CITY_THRESHOLD_KM;
-      statusEl.textContent = realLabel
-        ? `Pin set: ${realLabel}`
-        : isNearbyMatch
-        ? `Pin set near ${nearest.city}, ${nearest.province}`
-        : "Pin set — fill in the location field above.";
-      statusEl.classList.remove("is-error");
-    });
-    sellMap.on("click", async (e) => {
-      sellMapMarker.setLatLng(e.latlng);
-      sellMapMarker.fire("dragend");
-    });
+    }).addTo(locModalMap);
+    // The pin is a fixed CSS overlay (always centred) — so the "location" is
+    // simply wherever the map ends up centred after any pan/zoom.
+    locModalMap.on("moveend", handleLocModalMoveEnd);
   } else {
-    sellMap.setView([lat, lng], 12);
-    sellMapMarker.setLatLng([lat, lng]);
+    locModalMap.setView([lat, lng], zoom);
   }
-  setTimeout(() => sellMap.invalidateSize(), 50);
-  return sellMap;
+  setTimeout(() => locModalMap.invalidateSize(), 50);
+  return locModalMap;
 }
 
-function applyLocation({ province, city, lat, lng, locationText, clearProvinceCity, statusMessage }) {
-  if (clearProvinceCity) {
-    sellLocation.province = "";
-    sellLocation.city = "";
-  } else {
-    sellLocation.province = province || sellLocation.province;
-    sellLocation.city = city || sellLocation.city;
+async function handleLocModalMoveEnd() {
+  if (locModalSuppressMoveHandler) return;
+  const center = locModalMap.getCenter();
+  locDraft.lat = center.lat;
+  locDraft.lng = center.lng;
+  setLocModalStatus("Updating location…");
+  const reverse = await reverseGeocode(center.lat, center.lng);
+  const realLabel = formatRealLocationLabel(reverse);
+  const nearest = findNearestCity(center.lat, center.lng);
+  const isNearbyMatch = nearest && nearest.distanceKm <= NEARBY_CITY_THRESHOLD_KM;
+
+  locDraft.province = isNearbyMatch ? nearest.province : OTHER_PROVINCE_CODE;
+  locDraft.city = isNearbyMatch ? nearest.city : "Other (enter below)";
+  locDraft.locationText = realLabel || (isNearbyMatch ? `${nearest.city}, ${nearest.province}` : locDraft.locationText);
+
+  setLocModalStatus(
+    realLabel ? `Pin set: ${realLabel}` : isNearbyMatch ? `Pin set near ${nearest.city}, ${nearest.province}` : "Pin set."
+  );
+
+  if (reverse && reverse.countryCode && typeof applyDetectedCountry === "function") {
+    applyDetectedCountry(reverse.countryCode);
   }
-  sellLocation.lat = typeof lat === "number" ? lat : sellLocation.lat;
-  sellLocation.lng = typeof lng === "number" ? lng : sellLocation.lng;
-  renderProvinceOptions();
-  renderCityOptions();
-  // GPS detection carries its own real place name (locationText) and should
-  // win over the province/city selects, which only cover a handful of demo
-  // markets — otherwise the field would keep getting overwritten with
-  // whichever seeded city happens to be nearest, anywhere on the planet.
-  if (locationText) {
-    document.getElementById("adLocation").value = locationText;
-  } else {
-    syncLocationText();
-  }
-  if (sellLocation.lat !== null && sellLocation.lng !== null) ensureSellMap(sellLocation.lat, sellLocation.lng);
-  const statusEl = document.getElementById("gpsStatus");
-  if (statusMessage) {
-    statusEl.textContent = statusMessage;
-    statusEl.classList.remove("is-error");
-    statusEl.classList.add("is-success");
-  }
-  refreshIcons();
 }
 
-/* ------------------------------ Location search ------------------------------ */
+/* ------------------------------ Location search (inside modal) ------------------------------ */
 let locationSearchResults = [];
 let locationSearchTimer = null;
 let locationSearchActiveIndex = -1;
 
 function renderLocationSuggestions() {
-  const list = document.getElementById("adLocationSuggestions");
+  const list = document.getElementById("locModalSuggestions");
   if (!locationSearchResults.length) {
     list.hidden = true;
     list.innerHTML = "";
@@ -189,15 +169,14 @@ function selectLocationResult(result) {
   const nearest = findNearestCity(result.lat, result.lng);
   const isNearbyMatch = nearest && nearest.distanceKm <= NEARBY_CITY_THRESHOLD_KM;
 
-  applyLocation({
-    province: isNearbyMatch ? nearest.province : OTHER_PROVINCE_CODE,
-    city: isNearbyMatch ? nearest.city : "Other (enter below)",
-    clearProvinceCity: false,
-    lat: result.lat,
-    lng: result.lng,
-    locationText: result.label,
-    statusMessage: `Pin set: ${result.label}`,
-  });
+  locDraft.province = isNearbyMatch ? nearest.province : OTHER_PROVINCE_CODE;
+  locDraft.city = isNearbyMatch ? nearest.city : "Other (enter below)";
+  locDraft.lat = result.lat;
+  locDraft.lng = result.lng;
+  locDraft.locationText = result.label;
+
+  ensureLocModalMap(result.lat, result.lng, 14);
+  setLocModalStatus(`Pin set: ${result.label}`, "success");
 
   if (result.countryCode && typeof applyDetectedCountry === "function") {
     applyDetectedCountry(result.countryCode);
@@ -208,8 +187,8 @@ function selectLocationResult(result) {
 }
 
 function initLocationSearch() {
-  const input = document.getElementById("adLocation");
-  const list = document.getElementById("adLocationSuggestions");
+  const input = document.getElementById("locModalSearchInput");
+  const list = document.getElementById("locModalSuggestions");
 
   input.addEventListener("input", handleLocationInput);
 
@@ -245,57 +224,89 @@ function initLocationSearch() {
   });
 }
 
-async function handleUseGps() {
-  const btn = document.getElementById("useGpsBtn");
-  const label = document.getElementById("useGpsLabel");
-  const status = document.getElementById("gpsStatus");
-  status.classList.remove("is-error", "is-success");
-  label.textContent = "Locating…";
-  btn.disabled = true;
+/* ------------------------------ Locate-me (inside modal) ------------------------------ */
+async function handleLocModalLocate() {
+  const btn = document.getElementById("locModalLocateBtn");
+  btn.classList.add("is-loading");
+  setLocModalStatus("Locating…");
 
   try {
     const { lat, lng } = await requestUserLocation();
-    btn.classList.add("active");
-
-    // Reverse-geocode so the location field always reflects where the
-    // visitor actually is, anywhere in the world — not the sample
-    // province/city pairs the required dropdowns below happen to be seeded
-    // with.
-    const reverse = await reverseGeocode(lat, lng);
-    const realLabel = formatRealLocationLabel(reverse);
-
-    // Only auto-pick a seeded province/city when the GPS fix is genuinely
-    // near one of those demo markets (within NEARBY_CITY_THRESHOLD_KM) —
-    // otherwise fall back to the "Other / international" option so someone
-    // in, say, Tokyo or rural Idaho isn't silently relabeled as Boston.
-    const nearest = findNearestCity(lat, lng);
-    const isNearbyMatch = nearest && nearest.distanceKm <= NEARBY_CITY_THRESHOLD_KM;
-
-    applyLocation({
-      province: isNearbyMatch ? nearest.province : OTHER_PROVINCE_CODE,
-      city: isNearbyMatch ? nearest.city : "Other (enter below)",
-      clearProvinceCity: false,
-      lat,
-      lng,
-      locationText: realLabel || (isNearbyMatch ? `${nearest.city}, ${nearest.province}` : ""),
-      statusMessage: realLabel
-        ? `Located: ${realLabel}`
-        : isNearbyMatch
-        ? `Located near ${nearest.city}, ${nearest.province}`
-        : "Location found — drag the pin to fine-tune it, and fill in the location field above.",
-    });
-
-    if (reverse && reverse.countryCode && typeof applyDetectedCountry === "function") {
-      applyDetectedCountry(reverse.countryCode);
-    }
+    btn.classList.add("is-active");
+    ensureLocModalMap(lat, lng, 14);
+    // ensureLocModalMap's setView fires moveend itself, which will reverse
+    // geocode and update locDraft/status — nothing further needed here.
   } catch (err) {
-    status.classList.add("is-error");
-    status.textContent = userGeoState.error || "Couldn't get your location. You can still pick a province/city below.";
+    setLocModalStatus(userGeoState.error || "Couldn't get your location. Try searching above instead.", "error");
   } finally {
-    label.textContent = "Use my current location";
-    btn.disabled = false;
+    btn.classList.remove("is-loading");
   }
 }
+
+/* ------------------------------ Modal open/close/apply ------------------------------ */
+function openLocationModal() {
+  // Start the draft from whatever's already committed, so re-opening the
+  // modal (e.g. to tweak the pin) doesn't lose the previous selection.
+  locDraft = { ...sellLocation };
+  document.getElementById("locModalSearchInput").value = "";
+  locationSearchResults = [];
+  renderLocationSuggestions();
+  setLocModalStatus(sellLocation.locationText ? `Pin set: ${sellLocation.locationText}` : "");
+
+  document.getElementById("locationModal").classList.add("open");
+  refreshIcons();
+
+  const lat = sellLocation.lat ?? DEFAULT_MAP_CENTER.lat;
+  const lng = sellLocation.lng ?? DEFAULT_MAP_CENTER.lng;
+  const zoom = sellLocation.lat !== null ? 14 : DEFAULT_MAP_ZOOM;
+  // setView on a freshly created map fires its own moveend before locDraft
+  // above is meaningfully different, so suppress that first callback when we
+  // already know exactly what the draft should be (i.e. we have a saved
+  // location) to avoid an unnecessary reverse-geocode round trip on open.
+  locModalSuppressMoveHandler = sellLocation.lat !== null;
+  ensureLocModalMap(lat, lng, zoom);
+  setTimeout(() => {
+    locModalSuppressMoveHandler = false;
+  }, 300);
+}
+
+function closeLocationModal() {
+  document.getElementById("locationModal").classList.remove("open");
+}
+
+function applyLocationModal() {
+  if (locDraft.lat === null || locDraft.lng === null) {
+    setLocModalStatus("Search for a place or drag the map to drop a pin first.", "error");
+    return;
+  }
+  sellLocation.province = locDraft.province;
+  sellLocation.city = locDraft.city;
+  sellLocation.lat = locDraft.lat;
+  sellLocation.lng = locDraft.lng;
+  sellLocation.locationText = locDraft.locationText;
+  updateLocationTrigger();
+  closeLocationModal();
+}
+
+function initLocationModal() {
+  document.getElementById("openLocationModalBtn").addEventListener("click", openLocationModal);
+  document.getElementById("locationModalClose").addEventListener("click", closeLocationModal);
+  document.getElementById("locationModal").addEventListener("click", (e) => {
+    if (e.target.id === "locationModal") closeLocationModal();
+  });
+  document.getElementById("locModalApplyBtn").addEventListener("click", applyLocationModal);
+  document.getElementById("locModalLocateBtn").addEventListener("click", handleLocModalLocate);
+  initLocationSearch();
+}
+
+// Keep the Leaflet canvas in sync with its container's actual size across
+// resizes/orientation changes, same rationale as browse.js.
+let locModalResizeTimer = null;
+window.addEventListener("resize", () => {
+  if (!locModalMap) return;
+  clearTimeout(locModalResizeTimer);
+  locModalResizeTimer = setTimeout(() => locModalMap.invalidateSize(), 150);
+});
 
 /* --------------------------------- Photos --------------------------------- */
 function renderPhotoGrid() {
@@ -369,9 +380,9 @@ function gatherFormData() {
     condition: document.getElementById("adCondition").value,
     description: document.getElementById("adDescription").value.trim(),
     price: enteredPrice ? String(usdPrice) : "",
-    location: document.getElementById("adLocation").value.trim(),
-    province: sellLocation.province || document.getElementById("adProvince").value,
-    city: sellLocation.city || document.getElementById("adCity").value,
+    location: sellLocation.locationText,
+    province: sellLocation.province,
+    city: sellLocation.city,
     lat: sellLocation.lat,
     lng: sellLocation.lng,
     photos: photos.map((p) => p.url),
@@ -391,7 +402,6 @@ function loadForEditing(id) {
   const rate = (CURRENCIES[currencyCode] && CURRENCIES[currencyCode].rateFromUSD) || 1;
   const storedUsdPrice = Number(item.price) || 0;
   document.getElementById("adPrice").value = storedUsdPrice ? Math.round(storedUsdPrice * rate) : "";
-  document.getElementById("adLocation").value = item.location || "";
   document.getElementById("adCategory").value = item.category || "";
   document.getElementById("adCondition").value = item.condition || "";
 
@@ -399,9 +409,8 @@ function loadForEditing(id) {
   sellLocation.city = item.city || "";
   sellLocation.lat = typeof item.lat === "number" ? item.lat : null;
   sellLocation.lng = typeof item.lng === "number" ? item.lng : null;
-  renderProvinceOptions();
-  renderCityOptions();
-  if (sellLocation.lat !== null && sellLocation.lng !== null) ensureSellMap(sellLocation.lat, sellLocation.lng);
+  sellLocation.locationText = item.location || "";
+  updateLocationTrigger();
 
   photos = (item.photos || []).map((url) => ({ url }));
   renderPhotoGrid();
@@ -534,8 +543,7 @@ document.addEventListener("DOMContentLoaded", () => {
   renderCategoryOptions();
   renderConditionOptions();
   renderPhotoGrid();
-  renderProvinceOptions();
-  renderCityOptions();
+  updateLocationTrigger();
   renderPriceCurrency();
   window.addEventListener("marka:currency-changed", renderPriceCurrency);
 
@@ -547,19 +555,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("saveDraftBtn").addEventListener("click", handleSaveDraft);
   document.getElementById("deleteDraftBtn").addEventListener("click", handleDeleteListing);
 
-  document.getElementById("adProvince").addEventListener("change", (e) => {
-    sellLocation.province = e.target.value;
-    sellLocation.city = "";
-    renderCityOptions();
-  });
-
-  document.getElementById("adCity").addEventListener("change", (e) => {
-    const coords = getCityCoords(sellLocation.province, e.target.value);
-    applyLocation({ city: e.target.value, lat: coords ? coords.lat : null, lng: coords ? coords.lng : null });
-  });
-
-  document.getElementById("useGpsBtn").addEventListener("click", handleUseGps);
-  initLocationSearch();
+  initLocationModal();
 
   document.getElementById("previewBtn").addEventListener("click", openPreview);
   document.getElementById("previewModalClose").addEventListener("click", closePreview);
@@ -573,14 +569,4 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   refreshIcons();
-});
-
-// Same rationale as browse.js: keep the Leaflet canvas in sync with its
-// container's actual size across resizes/orientation changes, not just at
-// the moment it was first created.
-let sellMapResizeTimer = null;
-window.addEventListener("resize", () => {
-  if (!sellMap) return;
-  clearTimeout(sellMapResizeTimer);
-  sellMapResizeTimer = setTimeout(() => sellMap.invalidateSize(), 150);
 });
