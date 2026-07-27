@@ -1,19 +1,19 @@
 /* ============================================================================
-   MARKA — User-created listings store
+   MARKA — User-created listings store (Supabase-backed)
    Everything created on the Sell page (drafts + published ads) is persisted
-   to localStorage, since this build has no backend. These use their own
-   string ids ("u_...") so they never collide with the numeric LISTING_DETAILS
+   to the `listings` table (Supabase/0002 listings.sql), with photos uploaded
+   to the "listing-photos" Storage bucket. These use their own string-shaped
+   UUIDs from the DB, so they never collide with the numeric LISTING_DETAILS
    ids in js/listing-data.js. listing.js / profile.js render either dataset
-   through the same card/detail markup by converting stored items with
+   through the same card/detail markup by converting DB rows with
    userListingToRecord() below.
+
+   NOTE ON SCOPE: this wires up the seller's own loop — post, edit, draft,
+   delete, view your own ad. Browse/category/search/favorites still read only
+   the demo LISTING_DETAILS catalog for now; having them also surface real
+   published listings is the natural next slice of backend work.
    ============================================================================ */
 
-const USER_LISTINGS_KEY = "marka_user_listings_v1";
-
-// Every status a listing can be in, in the order they should appear as tabs
-// on the profile page. "published" is surfaced to the user as "Active" —
-// the stored value stays "published" so it keeps matching sell.js / older
-// records; everything else is stored under its own display name.
 const LISTING_STATUSES = ["published", "pending", "sold", "expired", "draft"];
 const LISTING_STATUS_META = {
   published: { label: "Active", emptyText: "Ads you post will show up here once they're live." },
@@ -21,19 +21,6 @@ const LISTING_STATUS_META = {
   sold: { label: "Sold", emptyText: "Ads you've marked as sold show up here." },
   expired: { label: "Expired", emptyText: "Ads that ran past their listing period show up here." },
   draft: { label: "Drafts", emptyText: "Unfinished ads you've started but not posted yet." },
-};
-
-// Stand-in for the signed-in user until there's a real account system.
-// Mirrors js/profile-data.js's PROFILE so "your" listings read consistently
-// everywhere, without making listing.html / sell.html depend on load order.
-const CURRENT_USER = {
-  name: "Jordan Diaz",
-  initials: "JD",
-  memberSince: "2021",
-  rating: 4.9,
-  verified: true,
-  phone: "+1 (555) 201-9042",
-  email: "jordan.diaz@example.com",
 };
 
 const GRAD_PALETTE = [
@@ -47,63 +34,203 @@ const GRAD_PALETTE = [
 
 function gradFromId(id) {
   let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  const str = String(id);
+  for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
   return GRAD_PALETTE[hash % GRAD_PALETTE.length];
 }
 
-function newListingId() {
-  return `u_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+/* ------------------------------ Current user cache ------------------------------ */
+let listingsUserId = null;
+async function getListingsUserId() {
+  if (listingsUserId) return listingsUserId;
+  const session = await getSession();
+  listingsUserId = session ? session.user.id : null;
+  return listingsUserId;
+}
+
+/* --------------------------- DB row <-> item shape mapping --------------------------- */
+// The rest of the app (sell.js/profile.js/listing.js) was built around a
+// simple "item" shape (price as a string, flat lat/lng, etc) — these two
+// helpers translate to/from the `listings` table's columns so none of that
+// call-site code has to change shape.
+function dbRowToItem(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    price: row.price != null ? String(row.price) : "",
+    category: row.category,
+    condition: row.condition,
+    location: row.location,
+    province: row.province,
+    city: row.city,
+    lat: row.lat,
+    lng: row.lng,
+    photos: row.photos || [],
+    status: row.status,
+    userId: row.user_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function itemToDbFields(data) {
+  const fields = {};
+  if ("title" in data) fields.title = data.title || "";
+  if ("description" in data) fields.description = data.description || "";
+  if ("price" in data) fields.price = Number(data.price) || 0;
+  if ("category" in data) fields.category = data.category || "Other";
+  if ("condition" in data) fields.condition = data.condition || "";
+  if ("location" in data) fields.location = data.location || "";
+  if ("province" in data) fields.province = data.province || null;
+  if ("city" in data) fields.city = data.city || null;
+  if ("lat" in data) fields.lat = typeof data.lat === "number" ? data.lat : null;
+  if ("lng" in data) fields.lng = typeof data.lng === "number" ? data.lng : null;
+  if ("photos" in data) fields.photos = data.photos || [];
+  if ("status" in data) fields.status = data.status;
+  return fields;
+}
+
+/* -------------------------------- Photo uploads -------------------------------- */
+// Uploads any data-URL entries in `photoUrls` to Storage and returns the full
+// list with those swapped for public URLs; entries that are already a real
+// URL (previously uploaded) are passed through untouched.
+async function uploadListingPhotos(userId, photoUrls) {
+  const results = [];
+  for (const url of photoUrls) {
+    if (!url || !url.startsWith("data:")) {
+      results.push(url);
+      continue;
+    }
+    try {
+      const blob = await (await fetch(url)).blob();
+      const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+      const { error } = await supabaseClient.storage.from("listing-photos").upload(path, blob, {
+        contentType: "image/jpeg",
+        upsert: true,
+      });
+      if (error) throw error;
+      const { data } = supabaseClient.storage.from("listing-photos").getPublicUrl(path);
+      results.push(data.publicUrl);
+    } catch (err) {
+      console.error("Could not upload listing photo:", err);
+      results.push(url); // fall back to the data URL rather than losing the photo
+    }
+  }
+  return results;
 }
 
 /* -------------------------------- Read / write -------------------------------- */
-function readUserListings() {
-  try {
-    const raw = localStorage.getItem(USER_LISTINGS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
+
+// Fetches a single listing by id — works for your own listing in any status,
+// or anyone's PUBLISHED listing (RLS enforces this; see 0002 listings.sql).
+async function getUserListing(id) {
+  const { data, error } = await supabaseClient.from("listings").select("*").eq("id", id).maybeSingle();
+  if (error || !data) return null;
+  return dbRowToItem(data);
+}
+
+async function getUserListingsByStatus(status) {
+  const userId = await getListingsUserId();
+  if (!userId) return [];
+  const { data, error } = await supabaseClient
+    .from("listings")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("status", status)
+    .order("updated_at", { ascending: false });
+  if (error || !data) return [];
+  return data.map(dbRowToItem);
+}
+
+// All of the current user's listings, in any status — used by the Insights
+// page, which shows every ad's stats together rather than one status at a
+// time like the My Listings tab does.
+async function getAllUserListings() {
+  const userId = await getListingsUserId();
+  if (!userId) return [];
+  const { data, error } = await supabaseClient
+    .from("listings")
+    .select("*")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false });
+  if (error || !data) return [];
+  return data.map(dbRowToItem);
+}
+
+// Creates (no data.id) or updates (data.id present) a listing, uploading any
+// freshly-picked photos first. Returns the saved item in the same shape
+// getUserListing() returns.
+async function saveUserListing(data) {
+  const userId = await getListingsUserId();
+  if (!userId) throw new Error("You need to be signed in to post an ad.");
+
+  const photos = data.photos ? await uploadListingPhotos(userId, data.photos) : undefined;
+  const fields = itemToDbFields({ ...data, photos: photos ?? data.photos });
+
+  if (data.id) {
+    const { data: row, error } = await supabaseClient
+      .from("listings")
+      .update(fields)
+      .eq("id", data.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return dbRowToItem(row);
   }
+
+  const { data: row, error } = await supabaseClient
+    .from("listings")
+    .insert({ ...fields, user_id: userId })
+    .select()
+    .single();
+  if (error) throw error;
+  return dbRowToItem(row);
 }
 
-function writeUserListings(list) {
-  try {
-    localStorage.setItem(USER_LISTINGS_KEY, JSON.stringify(list));
-  } catch {
-    // Storage full/unavailable — this is a local-only demo store, fail quietly.
-  }
+async function deleteUserListing(id) {
+  const { error } = await supabaseClient.from("listings").delete().eq("id", id);
+  if (error) console.error("Could not delete listing:", error);
 }
 
-function getUserListing(id) {
-  return readUserListings().find((l) => l.id === id) || null;
+/* ------------------------------- Seller info -------------------------------- */
+// Small cache of {name, initials, rating, verified, ...} looked up from the
+// `profiles` table, keyed by user id — used to fill in the "seller" block on
+// a listing card/detail page for listings that aren't the current viewer's.
+const sellerInfoCache = {};
+async function getSellerInfo(userId) {
+  if (sellerInfoCache[userId]) return sellerInfoCache[userId];
+  const { data } = await supabaseClient
+    .from("profiles")
+    .select("full_name, rating, verified, member_since, phone")
+    .eq("id", userId)
+    .maybeSingle();
+  const info = data
+    ? {
+        name: data.full_name || "Marka user",
+        initials: initialsFromName(data.full_name || "M U"),
+        memberSince: data.member_since ? String(new Date(data.member_since).getFullYear()) : "",
+        rating: Number(data.rating) || 0,
+        verified: !!data.verified,
+        phone: data.phone || "",
+        deals: 0,
+      }
+    : { name: "Marka user", initials: "MU", memberSince: "", rating: 0, verified: false, phone: "", deals: 0 };
+  sellerInfoCache[userId] = info;
+  return info;
 }
 
-function getUserListingsByStatus(status) {
-  return readUserListings()
-    .filter((l) => l.status === status)
-    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-}
-
-function saveUserListing(data) {
-  const list = readUserListings();
-  const now = new Date().toISOString();
-  const id = data.id || newListingId();
-  const idx = list.findIndex((l) => l.id === id);
-  const existing = idx >= 0 ? list[idx] : null;
-  const record = {
-    ...existing,
-    ...data,
-    id,
-    createdAt: existing ? existing.createdAt : now,
-    updatedAt: now,
+function sellerFromProfile(p) {
+  return {
+    name: p.name,
+    initials: p.initials,
+    memberSince: (p.memberSince || "").replace(/^Member since /, ""),
+    rating: p.rating,
+    verified: p.verified,
+    phone: p.phone,
+    email: p.email,
+    deals: 0,
   };
-  if (idx >= 0) list[idx] = record;
-  else list.push(record);
-  writeUserListings(list);
-  return record;
-}
-
-function deleteUserListing(id) {
-  writeUserListings(readUserListings().filter((l) => l.id !== id));
 }
 
 /* ------------------------------- Render helpers -------------------------------- */
@@ -121,9 +248,11 @@ function timeAgo(iso) {
 
 // Converts a stored user listing into the same shape as LISTING_DETAILS
 // records (js/listing-data.js) so listing.js / profile.js can render either
-// dataset through the same markup. `images` holds data-URL strings when
+// dataset through the same markup. `images` holds real Storage URLs when
 // photos were uploaded, or falls back to a gradient pair like the demo data.
-function userListingToRecord(item) {
+// `seller` must be provided by the caller — pass sellerFromProfile(PROFILE)
+// for your own listings, or await getSellerInfo(item.userId) for others'.
+function userListingToRecord(item, seller) {
   const [c1, c2] = gradFromId(item.id);
   const images = item.photos && item.photos.length ? item.photos : [[c1, c2], [c2, c1], [c1, "#0D1730"]];
 
@@ -147,7 +276,7 @@ function userListingToRecord(item) {
       { label: "Category", value: item.category || "—" },
       { label: "Condition", value: item.condition || "—" },
     ],
-    seller: { ...CURRENT_USER, deals: 0 },
+    seller: seller || { name: "Marka user", initials: "MU", memberSince: "", rating: 0, verified: false, deals: 0 },
     status: item.status,
     isOwn: true,
   };

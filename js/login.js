@@ -1,14 +1,13 @@
 /* ============================================================================
    MARKA — Login page logic
-   Validates the two fields client-side, then signs in against Supabase Auth
-   (js/supabase-client.js + MarkaAuth from js/auth.js). "Keep me logged in on
-   this device" toggles whether the session persists across browser restarts
-   (localStorage) or ends when the tab closes (sessionStorage) — Supabase
-   itself always persists to whichever storage the client was built with, so
-   we just point supabaseClient at the right one before signing in.
+   Validates the two fields client-side, then signs in via Supabase Auth
+   (js/supabase-client.js). Real session on success, inline field error on
+   failure — no more fake timeout-then-redirect.
    ============================================================================ */
 
 document.addEventListener("DOMContentLoaded", async () => {
+  if (await redirectIfAuthed()) return;
+
   const form = document.getElementById("loginForm");
   const emailInput = document.getElementById("loginEmail");
   const passwordInput = document.getElementById("loginPassword");
@@ -16,13 +15,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const passwordGroup = document.getElementById("loginPasswordGroup");
   const submitBtn = document.getElementById("loginSubmitBtn");
   const toast = document.getElementById("loginToast");
-
-  // Already signed in? Skip straight past the form.
-  const existing = await MarkaAuth.getCurrentUser();
-  if (existing) {
-    window.location.href = nextUrlOr("profile.html");
-    return;
-  }
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -39,29 +31,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     if (!valid) return;
 
-    runFakeSubmit(submitBtn, async () => {
-      const { error } = await MarkaAuth.signIn(emailInput.value.trim(), passwordInput.value);
+    runFakeSubmit(
+      submitBtn,
+      async () => {
+        const { error } = await supabaseClient.auth.signInWithPassword({
+          email: emailInput.value.trim(),
+          password: passwordInput.value,
+        });
 
-      if (error) {
-        setFieldError(passwordGroup, authErrorMessage(error));
-        return;
-      }
+        if (error) {
+          setFieldError(passwordGroup, authErrorMessage(error));
+          return;
+        }
 
-      toast.hidden = false;
-      setTimeout(() => {
-        window.location.href = nextUrlOr("profile.html");
-      }, 700);
-    }, 600);
+        toast.hidden = false;
+        const params = new URLSearchParams(window.location.search);
+        const next = params.get("next");
+        setTimeout(() => {
+          window.location.href = next && next !== "login.html" ? next : "profile.html";
+        }, 500);
+      },
+      600
+    );
   });
 
   [emailInput, passwordInput].forEach((input, i) => {
     input.addEventListener("input", () => clearFieldError([emailGroup, passwordGroup][i]));
   });
 });
-
-// Sends the user back to wherever requireAuth() bounced them from
-// (login.html?next=sell.html), falling back to the profile page.
-function nextUrlOr(fallback) {
-  const next = new URLSearchParams(window.location.search).get("next");
-  return next ? decodeURIComponent(next) : fallback;
-}

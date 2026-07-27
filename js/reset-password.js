@@ -1,36 +1,50 @@
 /* ============================================================================
    MARKA — Reset password page logic
-   Landing page for the link in Supabase's password-reset email. Supabase
-   (detectSessionInUrl: true, set in js/supabase-client.js) reads the
-   recovery token out of the URL on load and turns it into a real session,
-   which is what lets updateUser({ password }) work below.
+   Reached only via the link in the Supabase password-reset email. Supabase's
+   client library reads the recovery token out of the URL automatically and
+   fires a PASSWORD_RECOVERY auth event with a temporary session — we just
+   wait for that, then call updateUser({ password }) to finish the reset.
    ============================================================================ */
 
 document.addEventListener("DOMContentLoaded", () => {
+  const resetView = document.getElementById("resetView");
+  const successView = document.getElementById("resetSuccessView");
+  const invalidView = document.getElementById("resetInvalidView");
+
   const form = document.getElementById("resetForm");
   const passwordInput = document.getElementById("resetPassword");
   const confirmInput = document.getElementById("resetConfirm");
   const passwordGroup = document.getElementById("resetPasswordGroup");
   const confirmGroup = document.getElementById("resetConfirmGroup");
   const submitBtn = document.getElementById("resetSubmitBtn");
-  const invalidToast = document.getElementById("resetInvalidToast");
-  const requestView = document.getElementById("requestView");
-  const successView = document.getElementById("successView");
+  const formError = document.getElementById("resetFormError");
 
-  // If Supabase couldn't establish a recovery session (expired/used link),
-  // there's nothing useful the form can do — say so up front.
+  let recoveryReady = false;
+
+  // If the link is missing/expired, Supabase never fires PASSWORD_RECOVERY
+  // and there's no session — show the "expired" state after a short grace
+  // period instead of leaving a dead form on screen.
+  const expiredTimer = setTimeout(async () => {
+    if (!recoveryReady) {
+      const session = await getSession();
+      if (!session) {
+        resetView.hidden = true;
+        invalidView.hidden = false;
+      }
+    }
+  }, 2500);
+
   supabaseClient.auth.onAuthStateChange((event) => {
-    if (event === "PASSWORD_RECOVERY") invalidToast.hidden = true;
+    if (event === "PASSWORD_RECOVERY") {
+      recoveryReady = true;
+      clearTimeout(expiredTimer);
+    }
   });
-
-  setTimeout(async () => {
-    const session = await MarkaAuth.getSession();
-    if (!session) invalidToast.hidden = false;
-  }, 1200);
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     clearAllErrors(form);
+    formError.style.display = "none";
 
     let valid = true;
     if (passwordInput.value.length < 8) {
@@ -44,14 +58,17 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!valid) return;
 
     runFakeSubmit(submitBtn, async () => {
-      const { error } = await MarkaAuth.updatePassword(passwordInput.value);
+      const { error } = await supabaseClient.auth.updateUser({ password: passwordInput.value });
+
       if (error) {
-        setFieldError(passwordGroup, authErrorMessage(error));
+        formError.querySelector("span").textContent = authErrorMessage(error);
+        formError.style.display = "flex";
         return;
       }
-      requestView.hidden = true;
+
+      resetView.hidden = true;
       successView.hidden = false;
-    }, 600);
+    });
   });
 
   [passwordInput, confirmInput].forEach((input, i) => {

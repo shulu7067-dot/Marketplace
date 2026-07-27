@@ -19,21 +19,29 @@ const REPORT_REASONS = [
   "Other",
 ];
 
-// Accepts both the numeric LISTING_DETAILS ids and the string ids ("u_...")
-// used by the localStorage-backed user-listings store (js/listings-store.js).
-function getRequestedId() {
+// Accepts both the numeric LISTING_DETAILS ids and the UUID ids used by the
+// Supabase-backed listings table (js/listings-store.js).
+async function getRequestedId() {
   const raw = new URLSearchParams(window.location.search).get("id");
   if (!raw) return 1;
   const numId = Number(raw);
   if (!Number.isNaN(numId) && LISTING_DETAILS[numId]) return numId;
-  if (getUserListing(raw)) return raw;
+  if (await getUserListing(raw)) return raw;
   return 1; // fall back to a known listing
 }
 
-function getRecordForId(id) {
+async function getRecordForId(id) {
   if (LISTING_DETAILS[id]) return LISTING_DETAILS[id];
-  const stored = getUserListing(id);
-  return stored ? userListingToRecord(stored) : LISTING_DETAILS[1];
+  const stored = await getUserListing(id);
+  if (!stored) return LISTING_DETAILS[1];
+
+  const session = await getSession();
+  const isOwn = !!session && session.user.id === stored.userId;
+  const seller = await getSellerInfo(stored.userId);
+
+  const record = userListingToRecord(stored, seller);
+  record.isOwn = isOwn;
+  return record;
 }
 
 // A single image entry is either a [c1, c2] gradient pair (demo data) or a
@@ -313,7 +321,7 @@ async function handleDeleteOwnListing(record) {
     danger: true,
   });
   if (!confirmed) return;
-  deleteUserListing(record.id);
+  await deleteUserListing(record.id);
   window.location.href = "profile.html";
 }
 
@@ -339,8 +347,8 @@ async function handleToggleBlockSeller(record) {
   refreshIcons();
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  const record = getRecordForId(getRequestedId());
+document.addEventListener("DOMContentLoaded", async () => {
+  const record = await getRecordForId(await getRequestedId());
   renderAll(record);
   if (!record.isOwn && typeof recordListingView === "function") recordListingView(record.id);
   if (!record.isOwn && typeof recordListingEvent === "function") recordListingEvent(record.id, "view");
@@ -426,7 +434,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 window.addEventListener("load", refreshIcons);
 
-window.addEventListener("marka:currency-changed", () => {
-  const record = getRecordForId(getRequestedId());
+window.addEventListener("marka:currency-changed", async () => {
+  const record = await getRecordForId(await getRequestedId());
   if (record) renderAll(record);
 });

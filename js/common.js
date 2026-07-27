@@ -300,3 +300,16 @@ if (typeof window !== "undefined") {
     if (e.key === "Escape") closeNavDrawer();
   });
 }
+
+/* -------------------------------- Shared helpers -------------------------------- */
+// Shared with js/profile.js (which defines its own copy that falls back to
+// PROFILE.initials when the name is empty — that one wins on profile.html
+// since it loads after this file).
+function initialsFromName(name) {
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0].toUpperCase())
+    .join("");
+}

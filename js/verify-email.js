@@ -1,13 +1,14 @@
 /* ============================================================================
    MARKA — Verify email page logic
-   Reads ?email= off the URL (set by signup.js) to personalize the copy and
-   as the address to verify, wires the 6-box code input (js/auth.js
-   initCodeInputs) to Supabase's verifyOtp (the code is the same one sent in
-   the confirmation email as {{ .Token }}), a 60s resend cooldown that calls
-   MarkaAuth.resendSignupOtp, and swaps in a success panel once verified.
+   Reads ?email= off the URL (set by signup.js), wires the 6-box code input
+   and 60s resend cooldown (js/auth.js), and verifies the code against
+   Supabase Auth (supabaseClient.auth.verifyOtp). On success Supabase sets a
+   real session, so the "Continue" step just goes to profile.html.
    ============================================================================ */
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  if (await redirectIfAuthed()) return;
+
   const params = new URLSearchParams(window.location.search);
   const email = params.get("email") ? decodeURIComponent(params.get("email")) : "";
   if (email) document.getElementById("targetEmail").textContent = email;
@@ -30,39 +31,42 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     const value = code.getCode();
     if (value.length !== 6) {
-      showCodeError("Enter all 6 digits.");
-      return;
-    }
-    if (!email) {
-      showCodeError("Missing email — go back to signup and try again.");
+      codeError.style.display = "flex";
       return;
     }
     codeError.style.display = "none";
 
+    if (!email) {
+      codeError.textContent = "Missing email — go back to signup and try again.";
+      codeError.style.display = "flex";
+      return;
+    }
+
     runFakeSubmit(submitBtn, async () => {
-      const { error } = await MarkaAuth.verifySignupOtp(email, value);
+      const { error } = await supabaseClient.auth.verifyOtp({
+        email,
+        token: value,
+        type: "signup",
+      });
+
       if (error) {
-        showCodeError(authErrorMessage(error));
+        codeError.querySelector("span") ? (codeError.querySelector("span").textContent = authErrorMessage(error)) : (codeError.textContent = authErrorMessage(error));
+        codeError.style.display = "flex";
         return;
       }
+
       codeView.hidden = true;
       verifiedView.hidden = false;
-    }, 600);
+    });
   });
 
   document.getElementById("resendBtn").addEventListener("click", async () => {
+    if (email) await supabaseClient.auth.resend({ type: "signup", email });
     resend.start();
     code.boxes.forEach((b) => {
       b.value = "";
       b.classList.remove("filled");
     });
     code.boxes[0].focus();
-    if (email) await MarkaAuth.resendSignupOtp(email);
   });
-
-  function showCodeError(message) {
-    const span = codeError.querySelector("span");
-    if (span && message) span.textContent = message;
-    codeError.style.display = "flex";
-  }
 });

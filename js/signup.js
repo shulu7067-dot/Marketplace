@@ -1,13 +1,14 @@
 /* ============================================================================
    MARKA — Sign up page logic
-   Validates name/email/password/confirm/terms client-side, creates the
-   account via Supabase Auth (full name goes into user metadata, which the
-   handle_new_user() DB trigger copies into public.profiles), then sends the
-   new user on to verify-email.html to enter the 6-digit code Supabase
-   emailed them.
+   Validates name/email/password/confirm/terms client-side, then creates a
+   real Supabase Auth account. If email confirmation is ON in your Supabase
+   project, sends the user to verify-email.html; if it's OFF, Supabase
+   returns a session immediately and we skip straight to the profile.
    ============================================================================ */
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  if (await redirectIfAuthed()) return;
+
   const form = document.getElementById("signupForm");
   const nameInput = document.getElementById("signupName");
   const emailInput = document.getElementById("signupEmail");
@@ -51,27 +52,38 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (!valid) return;
 
-    runFakeSubmit(submitBtn, async () => {
-      const { error } = await MarkaAuth.signUp(
-        emailInput.value.trim(),
-        passwordInput.value,
-        nameInput.value.trim()
-      );
+    runFakeSubmit(
+      submitBtn,
+      async () => {
+        const name = nameInput.value.trim();
+        const email = emailInput.value.trim();
 
-      if (error) {
-        if (/already registered|already exists/i.test(error.message || "")) {
+        const { data, error } = await supabaseClient.auth.signUp({
+          email,
+          password: passwordInput.value,
+          options: { data: { full_name: name } },
+        });
+
+        if (error) {
           setFieldError(emailGroup, authErrorMessage(error));
-        } else {
-          setFieldError(passwordGroup, authErrorMessage(error));
+          return;
         }
-        return;
-      }
 
-      toast.hidden = false;
-      setTimeout(() => {
-        window.location.href = "profile.html";
-      }, 700);
-    }, 600);
+        toast.hidden = false;
+        const encodedEmail = encodeURIComponent(email);
+
+        setTimeout(() => {
+          // If Supabase already returned a session, email confirmation is
+          // OFF for this project — the account is ready to use right away.
+          if (data.session) {
+            window.location.href = "profile.html";
+          } else {
+            window.location.href = `verify-email.html?email=${encodedEmail}`;
+          }
+        }, 700);
+      },
+      900
+    );
   });
 
   [nameInput, emailInput, passwordInput, confirmInput].forEach((input, i) => {

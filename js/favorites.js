@@ -24,17 +24,18 @@ function favParsePrice(str) {
 
 // Resolves a stored favorite id to a full listing record, or null if it no
 // longer exists (e.g. a user-posted ad that was since deleted).
-function resolveFavoriteRecord(id) {
+async function resolveFavoriteRecord(id) {
   const demo = LISTING_DETAILS[id];
   if (demo) return demo;
-  const owned = typeof getUserListing === "function" ? getUserListing(id) : null;
-  return owned ? userListingToRecord(owned) : null;
+  const owned = typeof getUserListing === "function" ? await getUserListing(id) : null;
+  if (!owned) return null;
+  const seller = await getSellerInfo(owned.userId);
+  return userListingToRecord(owned, seller);
 }
 
-function getFavoriteRecords() {
-  return getFavoriteIds()
-    .map(resolveFavoriteRecord)
-    .filter((r) => r && !isUserBlocked(r.seller && r.seller.name));
+async function getFavoriteRecords() {
+  const records = await Promise.all(getFavoriteIds().map(resolveFavoriteRecord));
+  return records.filter((r) => r && !isUserBlocked(r.seller && r.seller.name));
 }
 
 function getSortedFavorites(records) {
@@ -76,11 +77,11 @@ function favCardHTML(item) {
     </div>`;
 }
 
-function renderAll() {
+async function renderAll() {
   renderNavLinks("");
   renderSortOptions();
 
-  const records = getSortedFavorites(getFavoriteRecords());
+  const records = getSortedFavorites(await getFavoriteRecords());
   const grid = document.getElementById("favGrid");
   const empty = document.getElementById("favEmpty");
   const clearBtn = document.getElementById("favClearAllBtn");

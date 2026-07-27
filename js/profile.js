@@ -18,133 +18,141 @@ const state = {
 };
 
 /* ------------------------------ Supabase persistence ------------------------------
-   The signed-in user (js/auth.js requireAuth()) plus real load/save of the
-   PROFILE object (js/profile-data.js keeps the *shape* — field names, the
-   stats/reviews/settings-menu constants — but the actual values now come
-   from the "profiles" + "payment_methods" tables, see
-   supabase/migrations/0001_auth_and_profiles.sql). Every call site that used
-   to call writeProfileOverrides(partial) still does — it now pushes straight
-   to Supabase instead of localStorage. */
+   Real backend now: edits made in the Edit profile / Get verified / Payment
+   methods / Notifications / Privacy flows are written straight to the
+   `profiles` (and `payment_methods`) tables via Supabase, then re-applied
+   onto the PROFILE object (js/profile-data.js) so the rest of this file's
+   render functions don't need to change. */
 const HELPFUL_REVIEWS_KEY = "marka_helpful_reviews_v1";
 
-let currentUser = null;
+let currentUserId = null;
 
-// front-end PROFILE field name -> profiles table column name
-const PROFILE_TO_COLUMN = {
+// camelCase (PROFILE.*) -> snake_case (profiles table column) map.
+const PROFILE_COLUMN_MAP = {
   name: "full_name",
   loc: "location",
-  bio: "bio",
   phone: "phone",
-  avatarGrad: "avatar_gradient",
+  bio: "bio",
   avatarImage: "avatar_url",
   coverImage: "cover_url",
+  avatarGrad: "avatar_gradient",
   notificationPrefs: "notification_prefs",
   twoFactorEnabled: "two_factor_enabled",
   verificationSteps: "verification_steps",
   verified: "verified",
+  payoutMethod: "payout_method",
 };
 
-// Fetches this user's profile + payment methods row(s) and maps them onto
-// the shared PROFILE object (js/profile-data.js) so the rest of this file —
-// which reads/writes PROFILE.* everywhere — doesn't need to change.
-async function loadProfileFromSupabase() {
-  const [{ data: row, error: profileError }, { data: cards, error: cardsError }] = await Promise.all([
-    supabaseClient.from("profiles").select("*").eq("id", currentUser.id).single(),
-    supabaseClient.from("payment_methods").select("*").eq("user_id", currentUser.id).order("created_at"),
-  ]);
+// Loads the signed-in user's profile row (and payment methods) from
+// Supabase and applies it onto the PROFILE object. Call once, on load,
+// after requireAuth() has confirmed there's a session.
+async function loadProfileFromSupabase(session) {
+  currentUserId = session.user.id;
+  PROFILE.email = session.user.email || PROFILE.email;
 
-  if (profileError) {
-    console.error("Failed to load profile:", profileError.message);
+  const { data: row, error } = await supabaseClient.from("profiles").select("*").eq("id", currentUserId).single();
+
+  if (error || !row) {
+    console.error("Could not load profile:", error);
     return;
   }
 
-  PROFILE.name = row.full_name || currentUser.email;
-  PROFILE.initials = row.full_name ? initialsFromName(row.full_name) : "?";
+  if (row.full_name) {
+    PROFILE.name = row.full_name;
+    PROFILE.initials = initialsFromName(row.full_name);
+  }
   PROFILE.loc = row.location || "";
-  PROFILE.email = currentUser.email;
   PROFILE.phone = row.phone || "";
   PROFILE.bio = row.bio || "";
-  PROFILE.avatarGrad = row.avatar_gradient || null;
   PROFILE.avatarImage = row.avatar_url || null;
   PROFILE.coverImage = row.cover_url || null;
+  PROFILE.avatarGrad = row.avatar_gradient || null;
   PROFILE.rating = Number(row.rating) || 0;
   PROFILE.verified = !!row.verified;
-  PROFILE.verificationSteps = row.verification_steps || { email: false, phone: false, id: false };
-  PROFILE.notificationPrefs = row.notification_prefs || { push: true, email: true, sms: false };
+  PROFILE.verificationSteps = row.verification_steps || PROFILE.verificationSteps;
+  PROFILE.notificationPrefs = row.notification_prefs || PROFILE.notificationPrefs;
   PROFILE.twoFactorEnabled = !!row.two_factor_enabled;
-  PROFILE.payoutMethod = row.payout_method || "";
-  PROFILE.memberSince = `Member since ${new Date(row.member_since).getFullYear()}`;
-
-  if (!cardsError && cards) {
-    PROFILE.paymentMethods = cards.map((c) => ({ id: c.id, brand: c.brand, last4: c.last4, expiry: c.expiry }));
+  PROFILE.payoutMethod = row.payout_method || PROFILE.payoutMethod;
+  if (row.member_since) {
+    const year = new Date(row.member_since).getFullYear();
+    PROFILE.memberSince = `Member since ${year}`;
   }
+
+  const { data: cards } = await supabaseClient
+    .from("payment_methods")
+    .select("*")
+    .eq("user_id", currentUserId)
+    .order("created_at", { ascending: true });
+  PROFILE.paymentMethods = (cards || []).map((c) => ({ id: c.id, brand: c.brand, last4: c.last4, expiry: c.expiry }));
 }
 
-// Persists a partial PROFILE update to Supabase. `partial` uses the same
-// front-end field names PROFILE already uses (see PROFILE_TO_COLUMN above);
-// paymentMethods and email are handled separately since they don't live on
-// the profiles row itself.
+// Writes a partial PROFILE patch straight to the `profiles` row. Any key in
+// PROFILE_COLUMN_MAP is written to its matching column; `paymentMethods` is
+// handled separately (see syncPaymentMethods) since it's its own table.
 async function writeProfileOverrides(partial) {
-  if (!currentUser) return;
-
-  const columnUpdate = {};
+  if (!currentUserId) return;
+  const updates = {};
   for (const [key, value] of Object.entries(partial)) {
-    if (key === "initials" || key === "paymentMethods" || key === "email") continue;
-    if (key in PROFILE_TO_COLUMN) columnUpdate[PROFILE_TO_COLUMN[key]] = value;
+    if (key === "paymentMethods") continue;
+    if (key === "initials" || key === "email") continue; // derived / owned by auth, not stored directly
+    const column = PROFILE_COLUMN_MAP[key];
+    if (column) updates[column] = value;
   }
+  if (Object.keys(updates).length === 0) return;
 
-  const tasks = [];
-
-  if (Object.keys(columnUpdate).length) {
-    tasks.push(
-      supabaseClient
-        .from("profiles")
-        .update(columnUpdate)
-        .eq("id", currentUser.id)
-        .then(({ error }) => {
-          if (error) console.error("Failed to save profile:", error.message);
-        })
-    );
-  }
-
-  // Email lives on auth.users, not profiles — changing it triggers a
-  // confirmation email to the new address before it actually takes effect.
-  if (typeof partial.email === "string" && partial.email !== currentUser.email) {
-    tasks.push(
-      supabaseClient.auth.updateUser({ email: partial.email }).then(({ error }) => {
-        if (error) console.error("Failed to update email:", error.message);
-      })
-    );
-  }
-
-  // Payment methods: this UI always hands us the full current list, so the
-  // simplest correct sync is delete-all-then-reinsert for this user.
-  if (Array.isArray(partial.paymentMethods)) {
-    tasks.push(
-      (async () => {
-        const { error: delError } = await supabaseClient.from("payment_methods").delete().eq("user_id", currentUser.id);
-        if (delError) return console.error("Failed to clear payment methods:", delError.message);
-        const rows = partial.paymentMethods.map((pm) => ({
-          user_id: currentUser.id,
-          brand: pm.brand,
-          last4: pm.last4,
-          expiry: pm.expiry,
-        }));
-        if (rows.length) {
-          const { error: insError } = await supabaseClient.from("payment_methods").insert(rows);
-          if (insError) console.error("Failed to save payment methods:", insError.message);
-        }
-      })()
-    );
-  }
-
-  await Promise.all(tasks);
+  const { error } = await supabaseClient.from("profiles").update(updates).eq("id", currentUserId);
+  if (error) console.error("Could not save profile:", error);
 }
 
-// Kept as a no-op alias — earlier builds called this to re-apply localStorage
-// overrides onto PROFILE; loadProfileFromSupabase() now does that job.
-async function applyProfileOverrides() {
-  await loadProfileFromSupabase();
+// Uploads a compressed image blob to a public Supabase Storage bucket
+// ("avatars" or "covers"), under a per-user folder, and returns the public
+// URL. Used instead of storing data-URLs directly on the profile row.
+async function uploadProfileImage(bucket, dataUrl) {
+  if (!currentUserId) return dataUrl;
+  const blob = await (await fetch(dataUrl)).blob();
+  const path = `${currentUserId}/${bucket === "avatars" ? "avatar" : "cover"}-${Date.now()}.jpg`;
+  const { error } = await supabaseClient.storage.from(bucket).upload(path, blob, {
+    contentType: "image/jpeg",
+    upsert: true,
+  });
+  if (error) {
+    console.error(`Could not upload ${bucket} image:`, error);
+    return dataUrl; // fall back to the data URL rather than losing the photo entirely
+  }
+  const { data } = supabaseClient.storage.from(bucket).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+// Replaces the user's saved cards with `newCards` (as edited locally in the
+// Payment methods modal): inserts any that aren't in the DB yet, deletes any
+// that were removed, then returns the fresh list (with real DB ids) so the
+// UI can keep using correct ids for future removes.
+async function syncPaymentMethods(newCards, previousCards) {
+  if (!currentUserId) return newCards;
+
+  const prevIds = new Set(previousCards.map((c) => c.id));
+  const newIds = new Set(newCards.map((c) => c.id));
+
+  const toDelete = previousCards.filter((c) => !newIds.has(c.id)).map((c) => c.id);
+  const toInsert = newCards.filter((c) => !prevIds.has(c.id));
+
+  if (toDelete.length) {
+    const { error } = await supabaseClient.from("payment_methods").delete().in("id", toDelete);
+    if (error) console.error("Could not remove payment method(s):", error);
+  }
+
+  if (toInsert.length) {
+    const rows = toInsert.map((c) => ({ user_id: currentUserId, brand: c.brand, last4: c.last4, expiry: c.expiry }));
+    const { error } = await supabaseClient.from("payment_methods").insert(rows);
+    if (error) console.error("Could not save payment method(s):", error);
+  }
+
+  const { data: cards } = await supabaseClient
+    .from("payment_methods")
+    .select("*")
+    .eq("user_id", currentUserId)
+    .order("created_at", { ascending: true });
+  return (cards || []).map((c) => ({ id: c.id, brand: c.brand, last4: c.last4, expiry: c.expiry }));
 }
 
 /* ------------------------------- Image helper ---------------------------------
@@ -193,25 +201,6 @@ function toggleHelpful(reviewId) {
   } catch {
     // ignore
   }
-}
-
-// Compresses `file` (see fileToCompressedDataURL above) then uploads it to
-// the given public storage bucket ("avatars" | "covers") under this user's
-// own folder (required by the storage RLS policies in
-// supabase/migrations/0001_auth_and_profiles.sql), returning the public URL.
-async function uploadProfileImage(bucket, file, maxDim, quality) {
-  const dataUrl = await fileToCompressedDataURL(file, maxDim, quality);
-  const blob = await (await fetch(dataUrl)).blob();
-  const path = `${currentUser.id}/${bucket === "avatars" ? "avatar" : "cover"}.jpg`;
-
-  const { error: uploadError } = await supabaseClient.storage
-    .from(bucket)
-    .upload(path, blob, { contentType: "image/jpeg", upsert: true });
-  if (uploadError) throw uploadError;
-
-  const { data } = supabaseClient.storage.from(bucket).getPublicUrl(path);
-  // Cache-bust so the new photo shows immediately instead of a cached old one.
-  return `${data.publicUrl}?v=${Date.now()}`;
 }
 
 function initialsFromName(name) {
@@ -369,11 +358,13 @@ function demoOwnedListingCardHTML(item, status) {
 // map to a stored `status`; Drafts uses "draft"). Merges the demo listings
 // in MY_LISTING_IDS with anything real posted from the Sell page so both
 // sources show up together, sorted the same way the store already sorts.
-function renderMyListings() {
+async function renderMyListings() {
   const grid = document.getElementById("myListingsGrid");
   const status = state.listingStatus;
 
-  const owned = getUserListingsByStatus(status).map(userListingToRecord);
+  const ownedItems = await getUserListingsByStatus(status);
+  const seller = sellerFromProfile(PROFILE);
+  const owned = ownedItems.map((item) => userListingToRecord(item, seller));
   const demo = MY_LISTING_IDS.filter((m) => m.status === status).map((m) => LISTING_DETAILS[m.id]);
 
   const ownedHTML = owned.map(ownedListingCardHTML).join("");
@@ -618,7 +609,7 @@ function toggleFav(id) {
 }
 
 async function handleDeleteListing(id) {
-  const item = getUserListing(id);
+  const item = await getUserListing(id);
   const confirmed = await confirmModal({
     title: item && item.status === "draft" ? "Delete this draft?" : "Delete this listing?",
     message: "This will permanently remove it. This action can't be undone.",
@@ -626,7 +617,7 @@ async function handleDeleteListing(id) {
     danger: true,
   });
   if (!confirmed) return;
-  deleteUserListing(id);
+  await deleteUserListing(id);
   renderMyListings();
   refreshIcons();
 }
@@ -819,31 +810,21 @@ function openEditProfileModal() {
     }
 
     if (e.target.closest('[data-action="save"]')) {
-      const saveBtn = overlay.querySelector('[data-action="save"]');
-      saveBtn.disabled = true;
-
       (async () => {
+        const saveBtn = e.target.closest('[data-action="save"]');
+        if (saveBtn) saveBtn.disabled = true;
+
         const name = overlay.querySelector("#editName").value.trim() || PROFILE.name;
         const loc = overlay.querySelector("#editLoc").value.trim() || PROFILE.loc;
         const bio = overlay.querySelector("#editBio").value.trim();
 
-        // A staged photo is a local data URL until now — upload it to
-        // Supabase Storage so what actually gets saved is a real public URL.
-        try {
-          if (chosenAvatarImage && chosenAvatarImage.startsWith("data:")) {
-            const blob = await (await fetch(chosenAvatarImage)).blob();
-            const path = `${currentUser.id}/avatar.jpg`;
-            await supabaseClient.storage.from("avatars").upload(path, blob, { contentType: "image/jpeg", upsert: true });
-            chosenAvatarImage = `${supabaseClient.storage.from("avatars").getPublicUrl(path).data.publicUrl}?v=${Date.now()}`;
-          }
-          if (chosenCoverImage && chosenCoverImage.startsWith("data:")) {
-            const blob = await (await fetch(chosenCoverImage)).blob();
-            const path = `${currentUser.id}/cover.jpg`;
-            await supabaseClient.storage.from("covers").upload(path, blob, { contentType: "image/jpeg", upsert: true });
-            chosenCoverImage = `${supabaseClient.storage.from("covers").getPublicUrl(path).data.publicUrl}?v=${Date.now()}`;
-          }
-        } catch (err) {
-          console.error("Photo upload failed:", err.message || err);
+        // Freshly-picked photos are still data URLs at this point — upload
+        // them to Storage now and swap in the resulting public URL.
+        if (chosenAvatarImage && chosenAvatarImage.startsWith("data:")) {
+          chosenAvatarImage = await uploadProfileImage("avatars", chosenAvatarImage);
+        }
+        if (chosenCoverImage && chosenCoverImage.startsWith("data:")) {
+          chosenCoverImage = await uploadProfileImage("covers", chosenCoverImage);
         }
 
         PROFILE.name = name;
@@ -1117,10 +1098,16 @@ function openPersonalInfoModal() {
 
       PROFILE.name = name;
       PROFILE.initials = initialsFromName(name);
-      PROFILE.email = email;
       PROFILE.phone = phone;
 
-      writeProfileOverrides({ name, initials: PROFILE.initials, email, phone });
+      writeProfileOverrides({ name, phone });
+
+      // Email lives on the Supabase auth user, not the profiles table —
+      // changing it sends a confirmation link to the new address, and it
+      // only takes effect once that's clicked.
+      if (email !== PROFILE.email) {
+        supabaseClient.auth.updateUser({ email }).catch((err) => console.error("Could not update email:", err));
+      }
 
       renderHeader();
       renderSettings();
@@ -1266,28 +1253,35 @@ function openPaymentMethodsModal() {
   paint();
   requestAnimationFrame(() => overlay.classList.add("open"));
 
+  let savedCards = PROFILE.paymentMethods.map((c) => ({ ...c }));
+
   function cleanup() {
     overlay.classList.remove("open");
     setTimeout(() => overlay.remove(), 200);
   }
 
-  function commit() {
-    PROFILE.paymentMethods = cards;
-    writeProfileOverrides({ paymentMethods: cards });
+  // Syncs `cards` to Supabase (insert new rows, delete removed ones), then
+  // swaps in the fresh DB-backed list (real ids) before repainting.
+  async function commit(repaint) {
+    const fresh = await syncPaymentMethods(cards, savedCards);
+    savedCards = fresh;
+    cards = fresh;
+    PROFILE.paymentMethods = fresh;
     renderSettings();
     refreshIcons();
+    if (repaint) paint();
   }
 
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay || e.target.closest(".modal-close") || e.target.closest('[data-action="close"]')) {
-      commit();
+      commit(false);
       return cleanup();
     }
 
     const removeBtn = e.target.closest("[data-remove-card]");
     if (removeBtn) {
       cards = cards.filter((c) => c.id !== removeBtn.dataset.removeCard);
-      commit();
+      commit(true);
       return paint();
     }
 
@@ -1314,7 +1308,7 @@ function openPaymentMethodsModal() {
         expiry,
       });
       showAddForm = false;
-      commit();
+      commit(true);
       paint();
     }
   });
@@ -1419,10 +1413,10 @@ function openPrivacyModal() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  currentUser = await requireAuth();
-  if (!currentUser) return; // requireAuth() already redirected to login.html
+  const session = await requireAuth();
+  if (!session) return; // requireAuth() already redirected to login.html
 
-  await loadProfileFromSupabase();
+  await loadProfileFromSupabase(session);
   renderAll();
 
   document.getElementById("editProfileBtn").addEventListener("click", () => {
@@ -1440,13 +1434,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     avatarFileInput.value = "";
     if (!file) return;
     try {
-      const url = await uploadProfileImage("avatars", file, 480, 0.85);
+      const dataUrl = await fileToCompressedDataURL(file, 480, 0.85);
+      const url = await uploadProfileImage("avatars", dataUrl);
       PROFILE.avatarImage = url;
       await writeProfileOverrides({ avatarImage: url });
       renderHeader();
       refreshIcons();
-    } catch (err) {
-      console.error("Avatar upload failed:", err.message || err);
+    } catch {
+      // Unreadable/unsupported file — ignore quietly.
     }
   });
 
@@ -1455,13 +1450,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     coverFileInput.value = "";
     if (!file) return;
     try {
-      const url = await uploadProfileImage("covers", file, 1200, 0.8);
+      const dataUrl = await fileToCompressedDataURL(file, 1200, 0.8);
+      const url = await uploadProfileImage("covers", dataUrl);
       PROFILE.coverImage = url;
       await writeProfileOverrides({ coverImage: url });
       renderHeader();
       refreshIcons();
-    } catch (err) {
-      console.error("Cover upload failed:", err.message || err);
+    } catch {
+      // Unreadable/unsupported file — ignore quietly.
     }
   });
 
@@ -1625,9 +1621,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const settingsItem = e.target.closest(".settings-item--danger");
     if (settingsItem) {
-      MarkaAuth.signOut().finally(() => {
-        window.location.href = "login.html";
-      });
+      logout(); // supabaseClient.auth.signOut() + redirect to login.html (js/supabase-client.js)
     }
   });
 

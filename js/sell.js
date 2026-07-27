@@ -281,8 +281,8 @@ function gatherFormData() {
   };
 }
 
-function loadForEditing(id) {
-  const item = getUserListing(id);
+async function loadForEditing(id) {
+  const item = await getUserListing(id);
   if (!item) return;
 
   editingId = item.id;
@@ -330,14 +330,20 @@ function showToast(message) {
 }
 
 /* ------------------------------- Save / publish ------------------------------- */
-function handleSaveDraft() {
+async function handleSaveDraft() {
   const data = gatherFormData();
   const isEmpty = !data.title && !data.description && !data.price && !data.location && !photos.length;
   if (isEmpty) {
     showToast("Add a few details first, then save your draft.");
     return;
   }
-  const saved = saveUserListing({ ...data, status: "draft" });
+  let saved;
+  try {
+    saved = await saveUserListing({ ...data, status: "draft" });
+  } catch (err) {
+    showToast(err.message || "Couldn't save your draft — try again.");
+    return;
+  }
   editingId = saved.id;
   editingStatus = "draft";
   history.replaceState(null, "", `sell.html?edit=${saved.id}`);
@@ -348,7 +354,7 @@ function handleSaveDraft() {
   showToast("Draft saved — finish it anytime from your profile.");
 }
 
-function publishListing() {
+async function publishListing() {
   const form = document.getElementById("sellForm");
   if (!form.checkValidity()) {
     form.reportValidity();
@@ -356,7 +362,13 @@ function publishListing() {
   }
   const data = gatherFormData();
   const wasPublished = editingStatus === "published";
-  const saved = saveUserListing({ ...data, status: "published" });
+  let saved;
+  try {
+    saved = await saveUserListing({ ...data, status: "published" });
+  } catch (err) {
+    showToast(err.message || "Couldn't publish your ad — try again.");
+    return;
+  }
   showToast(wasPublished ? "Changes saved." : "Your ad is live — buyers nearby can see it now.");
   setTimeout(() => {
     window.location.href = `listing.html?id=${saved.id}`;
@@ -377,7 +389,7 @@ async function handleDeleteListing() {
     danger: true,
   });
   if (!confirmed) return;
-  deleteUserListing(editingId);
+  await deleteUserListing(editingId);
   window.location.href = "profile.html";
 }
 
@@ -418,7 +430,7 @@ function buildPreviewHTML(record) {
 
 function openPreview() {
   const data = gatherFormData();
-  const record = userListingToRecord({ ...data, id: data.id || "preview", status: "published" });
+  const record = userListingToRecord({ ...data, id: data.id || "preview", status: "published" }, currentSellerInfo);
   document.getElementById("previewBody").innerHTML = buildPreviewHTML(record);
   document.getElementById("previewModal").classList.add("open");
   refreshIcons();
@@ -429,7 +441,28 @@ function closePreview() {
 }
 
 /* ---------------------------------- Init ---------------------------------- */
-document.addEventListener("DOMContentLoaded", () => {
+let currentSellerInfo = null;
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const session = await requireAuth();
+  if (!session) return; // requireAuth() already redirected to login.html
+
+  const { data: profileRow } = await supabaseClient
+    .from("profiles")
+    .select("full_name, rating, verified, member_since, phone")
+    .eq("id", session.user.id)
+    .maybeSingle();
+  currentSellerInfo = {
+    name: profileRow?.full_name || session.user.user_metadata?.full_name || "You",
+    initials: initialsFromName(profileRow?.full_name || "You"),
+    memberSince: profileRow?.member_since ? String(new Date(profileRow.member_since).getFullYear()) : "",
+    rating: Number(profileRow?.rating) || 0,
+    verified: !!profileRow?.verified,
+    phone: profileRow?.phone || "",
+    email: session.user.email || "",
+    deals: 0,
+  };
+
   renderNavLinks("");
   renderBottomNav("sell");
   renderCategoryOptions();
@@ -440,7 +473,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("marka:currency-changed", renderPriceCurrency);
 
   const editId = new URLSearchParams(window.location.search).get("edit");
-  if (editId) loadForEditing(editId);
+  if (editId) await loadForEditing(editId);
 
   document.getElementById("photoInput").addEventListener("change", handlePhotoInput);
   document.getElementById("sellForm").addEventListener("submit", handleSubmit);

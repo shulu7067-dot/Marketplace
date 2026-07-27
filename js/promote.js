@@ -23,12 +23,15 @@ function getRequestedId() {
 // checks the seeded demo listings (MY_LISTING_IDS) first, then anything
 // really posted from the Sell page. Returns null if the id doesn't belong to
 // the user's own ads at all.
-function resolveOwnListing(id) {
+async function resolveOwnListing(id) {
   const demoMatch = MY_LISTING_IDS.find((m) => String(m.id) === String(id));
   if (demoMatch) return { record: LISTING_DETAILS[demoMatch.id], status: demoMatch.status };
 
-  const owned = typeof getUserListing === "function" ? getUserListing(id) : null;
-  if (owned) return { record: userListingToRecord(owned), status: owned.status };
+  const owned = typeof getUserListing === "function" ? await getUserListing(id) : null;
+  if (owned) {
+    const seller = await getSellerInfo(owned.userId);
+    return { record: userListingToRecord(owned, seller), status: owned.status };
+  }
 
   return null;
 }
@@ -126,10 +129,10 @@ function renderSuccess(promo) {
   refreshIcons();
 }
 
-function renderAll() {
+async function renderAll() {
   renderNavLinks("");
 
-  const resolved = resolveOwnListing(state.id);
+  const resolved = await resolveOwnListing(state.id);
   if (!resolved || !resolved.record) {
     renderEmpty("Ad not found", "We couldn't find that ad among your listings. Head back to your profile and pick one from My Listings.");
     refreshIcons();

@@ -14,9 +14,11 @@ const ENGAGEMENT_META = [
   { key: "contact", label: "Calls / contact clicks", icon: "phone" },
 ];
 
-function getMyListingRecords() {
+async function getMyListingRecords() {
   const demo = MY_LISTING_IDS.map((m) => ({ ...LISTING_DETAILS[m.id], status: m.status, isOwn: true }));
-  const real = readUserListings().map(userListingToRecord);
+  const items = await getAllUserListings();
+  const seller = sellerFromProfile(PROFILE);
+  const real = items.map((item) => userListingToRecord(item, seller));
   return [...real, ...demo];
 }
 
@@ -135,9 +137,9 @@ function renderDetail(records, id) {
   refreshIcons();
 }
 
-function renderAll() {
+async function renderAll() {
   renderNavLinks("");
-  const records = getMyListingRecords();
+  const records = await getMyListingRecords();
 
   renderOverview(records);
 
@@ -167,19 +169,22 @@ function renderAll() {
   refreshIcons();
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  const session = await requireAuth();
+  if (!session) return; // requireAuth() already redirected to login.html
+
   renderAll();
   renderBottomNav("profile");
 
-  document.getElementById("listingPicker").addEventListener("change", (e) => {
-    const records = getMyListingRecords();
+  document.getElementById("listingPicker").addEventListener("change", async (e) => {
+    const records = await getMyListingRecords();
     history.replaceState(null, "", `insights.html?id=${e.target.value}`);
     renderDetail(records, e.target.value);
   });
 
-  window.addEventListener(ANALYTICS_UPDATED_EVENT, () => {
+  window.addEventListener(ANALYTICS_UPDATED_EVENT, async () => {
     const select = document.getElementById("listingPicker");
-    const records = getMyListingRecords();
+    const records = await getMyListingRecords();
     renderOverview(records);
     if (select.value) renderDetail(records, select.value);
   });
