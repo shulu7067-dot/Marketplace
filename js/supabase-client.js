@@ -9,8 +9,8 @@
    what Row Level Security (see supabase/migrations) is for.
    ============================================================================ */
 
-const SUPABASE_URL = "https://YOUR-PROJECT-REF.supabase.co";
-const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";
+const SUPABASE_URL = "https://gbfqwvnlkoviowxcykzv.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdiZnF3dm5sa292aW93eGN5a3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwOTg1NDksImV4cCI6MjEwMDY3NDU0OX0.UPRjDjvmM3SdS_bgBgLdviqwrdwnZLFxWQ6Lzh-_aUI";
 
 if (SUPABASE_URL.includes("YOUR-PROJECT-REF") && window.location.hostname !== "localhost") {
   console.warn("[Marka] supabase-client.js still has placeholder credentials — update SUPABASE_URL / SUPABASE_ANON_KEY.");
