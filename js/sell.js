@@ -45,23 +45,17 @@ function renderConditionOptions() {
     options.map((c) => `<option value="${c}">${c}</option>`).join("");
 }
 
-/* ------------------------------ Location picker (modal) ------------------------------ */
-// Facebook-style picker: a single "Location" trigger opens a modal containing
-// a search box and a pannable map with a pin fixed to the centre of the
-// viewport (see .location-modal-pin) — the location is whatever the map is
-// centred on, not a draggable marker. province/city are still derived and
-// stored (via findNearestCity) purely so existing listing data/filtering that
-// expects those fields keeps working; nothing about them is shown in the UI.
-let locModalMap = null;
-let locModalMoveTimer = null;
-let locModalSuppressMoveHandler = false; // true while we're panning programmatically (search/locate), not from a user drag
-
+/* ------------------------------ Location picker (sheet) ------------------------------ */
+// Same full-screen sheet as the Search page's Location filter (search any
+// place worldwide, or use my current location) — instead of a separate
+// Leaflet map picker, so posting an ad works exactly the same way as
+// searching for one, and there's no map/canvas sizing to get wrong.
 const sellLocation = { province: "", city: "", lat: null, lng: null, locationText: "" };
-// Working copy edited while the modal is open; only copied into sellLocation on Apply.
-let locDraft = { province: "", city: "", lat: null, lng: null, locationText: "" };
-
-const DEFAULT_MAP_CENTER = { lat: 20, lng: 0 };
-const DEFAULT_MAP_ZOOM = 2;
+// Working copy edited while the sheet is open; only copied into
+// sellLocation when the person taps Apply.
+let locDraft = { ...sellLocation };
+let locSearchResults = [];
+let locSearchTimer = null;
 
 function updateLocationTrigger() {
   const btn = document.getElementById("openLocationModalBtn");
@@ -74,209 +68,118 @@ function updateLocationTrigger() {
     label.textContent = "Add a location";
     btn.classList.remove("has-value");
   }
-  hiddenInput.value = sellLocation.locationText || "";
+  if (hiddenInput) hiddenInput.value = sellLocation.locationText || "";
 }
 
-function setLocModalStatus(message, kind) {
-  const status = document.getElementById("locModalStatus");
+function setLocSheetStatus(message, kind) {
+  const status = document.getElementById("locSheetStatus");
   status.textContent = message || "";
-  status.classList.remove("is-error", "is-success");
-  if (kind) status.classList.add(kind === "error" ? "is-error" : "is-success");
+  status.classList.remove("is-error", "is-active");
+  if (kind) status.classList.add(kind);
 }
 
-function ensureLocModalMap(lat, lng, zoom) {
-  if (typeof L === "undefined") return null;
-  if (!locModalMap) {
-    locModalMap = L.map("locModalMap", { scrollWheelZoom: true }).setView([lat, lng], zoom);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 19,
-    }).addTo(locModalMap);
-    // The pin is a fixed CSS overlay (always centred) — so the "location" is
-    // simply wherever the map ends up centred after any pan/zoom.
-    locModalMap.on("moveend", handleLocModalMoveEnd);
-  } else {
-    locModalMap.setView([lat, lng], zoom);
-  }
-  setTimeout(() => locModalMap.invalidateSize(), 50);
-  return locModalMap;
-}
-
-async function handleLocModalMoveEnd() {
-  if (locModalSuppressMoveHandler) return;
-  const center = locModalMap.getCenter();
-  locDraft.lat = center.lat;
-  locDraft.lng = center.lng;
-  setLocModalStatus("Updating location…");
-  const reverse = await reverseGeocode(center.lat, center.lng);
-  const realLabel = formatRealLocationLabel(reverse);
-  const nearest = findNearestCity(center.lat, center.lng);
-  const isNearbyMatch = nearest && nearest.distanceKm <= NEARBY_CITY_THRESHOLD_KM;
-
-  locDraft.province = isNearbyMatch ? nearest.province : OTHER_PROVINCE_CODE;
-  locDraft.city = isNearbyMatch ? nearest.city : "Other (enter below)";
-  locDraft.locationText = realLabel || (isNearbyMatch ? `${nearest.city}, ${nearest.province}` : locDraft.locationText);
-
-  setLocModalStatus(
-    realLabel ? `Pin set: ${realLabel}` : isNearbyMatch ? `Pin set near ${nearest.city}, ${nearest.province}` : "Pin set."
-  );
-
-  if (reverse && reverse.countryCode && typeof applyDetectedCountry === "function") {
-    applyDetectedCountry(reverse.countryCode);
-  }
-}
-
-/* ------------------------------ Location search (inside modal) ------------------------------ */
-let locationSearchResults = [];
-let locationSearchTimer = null;
-let locationSearchActiveIndex = -1;
-
-function renderLocationSuggestions() {
-  const list = document.getElementById("locModalSuggestions");
-  if (!locationSearchResults.length) {
+function renderLocSuggestions() {
+  const list = document.getElementById("locSheetSuggestions");
+  if (!locSearchResults.length) {
     list.hidden = true;
     list.innerHTML = "";
     return;
   }
-  list.innerHTML = locationSearchResults
+  list.hidden = false;
+  list.innerHTML = locSearchResults
     .map(
       (r, i) => `
-      <li data-index="${i}" class="${i === locationSearchActiveIndex ? "is-active" : ""}">
-        <i data-lucide="map-pin"></i><span>${r.label}</span>
-      </li>`
+    <button type="button" class="location-suggestion" data-suggestion-index="${i}">
+      <i data-lucide="map-pin"></i><span>${r.label}</span>
+    </button>`
     )
     .join("");
-  list.hidden = false;
   refreshIcons();
 }
 
-async function handleLocationInput(e) {
-  const query = e.target.value;
-  clearTimeout(locationSearchTimer);
-  locationSearchActiveIndex = -1;
-  if (query.trim().length < 3) {
-    locationSearchResults = [];
-    renderLocationSuggestions();
-    return;
-  }
-  locationSearchTimer = setTimeout(async () => {
-    locationSearchResults = await searchPlaces(query);
-    renderLocationSuggestions();
-  }, 350); // debounced so we don't hammer Nominatim on every keystroke
-}
-
-function selectLocationResult(result) {
-  const nearest = findNearestCity(result.lat, result.lng);
+// Shared by both a picked search result and "use my current location" —
+// works out which known city (if any) the point is close to so the record
+// still carries a province/city for anywhere that also filters by those.
+function applyPointToDraft(lat, lng, label) {
+  const nearest = findNearestCity(lat, lng);
   const isNearbyMatch = nearest && nearest.distanceKm <= NEARBY_CITY_THRESHOLD_KM;
-
   locDraft.province = isNearbyMatch ? nearest.province : OTHER_PROVINCE_CODE;
-  locDraft.city = isNearbyMatch ? nearest.city : "Other (enter below)";
-  locDraft.lat = result.lat;
-  locDraft.lng = result.lng;
-  locDraft.locationText = result.label;
-
-  ensureLocModalMap(result.lat, result.lng, 14);
-  setLocModalStatus(`Pin set: ${result.label}`, "success");
-
-  if (result.countryCode && typeof applyDetectedCountry === "function") {
-    applyDetectedCountry(result.countryCode);
-  }
-
-  locationSearchResults = [];
-  renderLocationSuggestions();
+  locDraft.city = isNearbyMatch ? nearest.city : "Other";
+  locDraft.lat = lat;
+  locDraft.lng = lng;
+  locDraft.locationText = label;
 }
 
 function initLocationSearch() {
-  const input = document.getElementById("locModalSearchInput");
-  const list = document.getElementById("locModalSuggestions");
-
-  input.addEventListener("input", handleLocationInput);
-
-  input.addEventListener("keydown", (e) => {
-    if (!locationSearchResults.length) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      locationSearchActiveIndex = Math.min(locationSearchActiveIndex + 1, locationSearchResults.length - 1);
-      renderLocationSuggestions();
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      locationSearchActiveIndex = Math.max(locationSearchActiveIndex - 1, 0);
-      renderLocationSuggestions();
-    } else if (e.key === "Enter" && locationSearchActiveIndex >= 0) {
-      e.preventDefault();
-      selectLocationResult(locationSearchResults[locationSearchActiveIndex]);
-    } else if (e.key === "Escape") {
-      locationSearchResults = [];
-      renderLocationSuggestions();
+  const input = document.getElementById("locSheetSearchInput");
+  input.addEventListener("input", (e) => {
+    const value = e.target.value.trim();
+    clearTimeout(locSearchTimer);
+    if (value.length < 3) {
+      locSearchResults = [];
+      renderLocSuggestions();
+      return;
     }
+    locSearchTimer = setTimeout(async () => {
+      locSearchResults = await searchPlaces(value);
+      renderLocSuggestions();
+    }, 350);
   });
 
-  list.addEventListener("click", (e) => {
-    const item = e.target.closest("li[data-index]");
-    if (!item) return;
-    selectLocationResult(locationSearchResults[Number(item.dataset.index)]);
-  });
-
-  document.addEventListener("click", (e) => {
-    if (e.target === input || list.contains(e.target)) return;
-    locationSearchResults = [];
-    renderLocationSuggestions();
+  document.getElementById("locSheetSuggestions").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-suggestion-index]");
+    if (!btn) return;
+    const result = locSearchResults[Number(btn.dataset.suggestionIndex)];
+    applyPointToDraft(result.lat, result.lng, result.label);
+    document.getElementById("locSheetSearchInput").value = result.label;
+    setLocSheetStatus(`Set to ${result.label}`, "is-active");
+    if (result.countryCode) applyDetectedCountry(result.countryCode);
+    locSearchResults = [];
+    renderLocSuggestions();
   });
 }
 
-/* ------------------------------ Locate-me (inside modal) ------------------------------ */
-async function handleLocModalLocate() {
-  const btn = document.getElementById("locModalLocateBtn");
-  btn.classList.add("is-loading");
-  setLocModalStatus("Locating…");
-
+async function handleLocSheetLocate() {
+  const btn = document.getElementById("locSheetLocateBtn");
+  const label = document.getElementById("locSheetLocateLabel");
+  label.textContent = "Locating…";
+  btn.disabled = true;
   try {
     const { lat, lng } = await requestUserLocation();
-    btn.classList.add("is-active");
-    ensureLocModalMap(lat, lng, 14);
-    // ensureLocModalMap's setView fires moveend itself, which will reverse
-    // geocode and update locDraft/status — nothing further needed here.
+    const reverse = await reverseGeocode(lat, lng);
+    const realLabel = formatRealLocationLabel(reverse) || "Your current location";
+    applyPointToDraft(lat, lng, realLabel);
+
+    document.getElementById("locSheetSearchInput").value = "";
+    locSearchResults = [];
+    renderLocSuggestions();
+    setLocSheetStatus(`Using your current location — ${realLabel}`, "is-active");
+
+    if (reverse && reverse.countryCode) applyDetectedCountry(reverse.countryCode);
   } catch (err) {
-    setLocModalStatus(userGeoState.error || "Couldn't get your location. Try searching above instead.", "error");
+    setLocSheetStatus(userGeoState.error || "Couldn't get your location. Try searching above instead.", "is-error");
   } finally {
-    btn.classList.remove("is-loading");
+    label.textContent = "Use my current location";
+    btn.disabled = false;
   }
 }
 
-/* ------------------------------ Modal open/close/apply ------------------------------ */
-function openLocationModal() {
+/* ------------------------------ Sheet open/close/apply ------------------------------ */
+function openLocationSheet() {
   // Start the draft from whatever's already committed, so re-opening the
-  // modal (e.g. to tweak the pin) doesn't lose the previous selection.
+  // sheet (e.g. to tweak it) doesn't lose the previous selection.
   locDraft = { ...sellLocation };
-  document.getElementById("locModalSearchInput").value = "";
-  locationSearchResults = [];
-  renderLocationSuggestions();
-  setLocModalStatus(sellLocation.locationText ? `Pin set: ${sellLocation.locationText}` : "");
-
-  document.getElementById("locationModal").classList.add("open");
+  document.getElementById("locSheetSearchInput").value = sellLocation.locationText || "";
+  locSearchResults = [];
+  renderLocSuggestions();
+  setLocSheetStatus(sellLocation.locationText ? `Set to ${sellLocation.locationText}` : "");
+  openSheet("locationSheet");
   refreshIcons();
-
-  const lat = sellLocation.lat ?? DEFAULT_MAP_CENTER.lat;
-  const lng = sellLocation.lng ?? DEFAULT_MAP_CENTER.lng;
-  const zoom = sellLocation.lat !== null ? 14 : DEFAULT_MAP_ZOOM;
-  // setView on a freshly created map fires its own moveend before locDraft
-  // above is meaningfully different, so suppress that first callback when we
-  // already know exactly what the draft should be (i.e. we have a saved
-  // location) to avoid an unnecessary reverse-geocode round trip on open.
-  locModalSuppressMoveHandler = sellLocation.lat !== null;
-  ensureLocModalMap(lat, lng, zoom);
-  setTimeout(() => {
-    locModalSuppressMoveHandler = false;
-  }, 300);
 }
 
-function closeLocationModal() {
-  document.getElementById("locationModal").classList.remove("open");
-}
-
-function applyLocationModal() {
+function applyLocationSheet() {
   if (locDraft.lat === null || locDraft.lng === null) {
-    setLocModalStatus("Search for a place or drag the map to drop a pin first.", "error");
+    setLocSheetStatus("Search for a place or use your current location first.", "is-error");
     return;
   }
   sellLocation.province = locDraft.province;
@@ -285,28 +188,17 @@ function applyLocationModal() {
   sellLocation.lng = locDraft.lng;
   sellLocation.locationText = locDraft.locationText;
   updateLocationTrigger();
-  closeLocationModal();
+  closeSheet("locationSheet");
 }
 
-function initLocationModal() {
-  document.getElementById("openLocationModalBtn").addEventListener("click", openLocationModal);
-  document.getElementById("locationModalClose").addEventListener("click", closeLocationModal);
-  document.getElementById("locationModal").addEventListener("click", (e) => {
-    if (e.target.id === "locationModal") closeLocationModal();
-  });
-  document.getElementById("locModalApplyBtn").addEventListener("click", applyLocationModal);
-  document.getElementById("locModalLocateBtn").addEventListener("click", handleLocModalLocate);
+function initLocationSheet() {
+  document.getElementById("openLocationModalBtn").addEventListener("click", openLocationSheet);
+  document.getElementById("locationSheetClose").addEventListener("click", () => closeSheet("locationSheet"));
+  wireSheetDismiss("locationSheet");
+  document.getElementById("locSheetApplyBtn").addEventListener("click", applyLocationSheet);
+  document.getElementById("locSheetLocateBtn").addEventListener("click", handleLocSheetLocate);
   initLocationSearch();
 }
-
-// Keep the Leaflet canvas in sync with its container's actual size across
-// resizes/orientation changes, same rationale as browse.js.
-let locModalResizeTimer = null;
-window.addEventListener("resize", () => {
-  if (!locModalMap) return;
-  clearTimeout(locModalResizeTimer);
-  locModalResizeTimer = setTimeout(() => locModalMap.invalidateSize(), 150);
-});
 
 /* --------------------------------- Photos --------------------------------- */
 function renderPhotoGrid() {
@@ -555,7 +447,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("saveDraftBtn").addEventListener("click", handleSaveDraft);
   document.getElementById("deleteDraftBtn").addEventListener("click", handleDeleteListing);
 
-  initLocationModal();
+  initLocationSheet();
 
   document.getElementById("previewBtn").addEventListener("click", openPreview);
   document.getElementById("previewModalClose").addEventListener("click", closePreview);

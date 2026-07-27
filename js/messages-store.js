@@ -60,8 +60,14 @@ function readConversations() {
 function writeConversations(list) {
   try {
     localStorage.setItem(MESSAGES_KEY, JSON.stringify(list));
+    return true;
   } catch {
-    // Storage full/unavailable — this is a local-only demo store, fail quietly.
+    // Storage full (very possible in a localStorage-only demo once a few
+    // photo messages/listing photos have been added) or unavailable —
+    // callers now check this instead of assuming the write landed, so a
+    // send that didn't actually persist can be reported rather than just
+    // vanishing on the next render.
+    return false;
   }
 }
 
@@ -141,10 +147,14 @@ function findOrCreateConversation({ listingId, listingTitle, listingPrice, listi
 /* ---------------------------------- Sending ------------------------------------- */
 // image: a data-URL string (uploaded photo) — kept consistent with how
 // js/listings-store.js stores uploaded listing photos.
+// Returns { message, error } instead of just the message — a failed
+// localStorage write (e.g. quota exceeded, easy to hit once a few photo
+// messages/listing photos are stored) used to be swallowed silently, so the
+// message looked like it sent and then simply vanished on the next render.
 function sendBuyerMessage(conversationId, { text, image } = {}) {
   const list = readConversations();
   const conv = list.find((c) => c.id === conversationId);
-  if (!conv) return null;
+  if (!conv) return { message: null, error: "Conversation not found." };
 
   const message = {
     id: newMessageId(),
@@ -155,12 +165,15 @@ function sendBuyerMessage(conversationId, { text, image } = {}) {
   if (text) message.text = text;
   if (image) message.image = image;
   conv.messages.push(message);
-  writeConversations(list);
+  const ok = writeConversations(list);
+  if (!ok) {
+    return { message: null, error: "Couldn't send — storage is full. Try removing a photo or two and sending again." };
+  }
   notifyMessagesUpdated();
 
   simulateDelivery(conversationId, message.id);
   simulateSellerResponse(conversationId);
-  return message;
+  return { message, error: null };
 }
 
 // "Sent" → "delivered" almost immediately, then "read" once the (simulated)
@@ -197,16 +210,29 @@ function markAllBuyerMessagesRead(conversationId) {
   }
 }
 
+// One set of pending simulation timers per conversation — sending several
+// messages in a row used to schedule a fresh "read + reply" pair every time,
+// so the seller would reply once per message sent instead of once for the
+// whole burst. Re-sending now cancels whatever was still pending first.
+const pendingSellerSimTimers = {};
+
 // A lightweight "seller is typing, then replies" simulation so the demo chat
 // feels responsive without a real backend. Also flips the read receipt on
 // the buyer's messages, and toggles the seller "online" while they reply.
 function simulateSellerResponse(conversationId) {
+  const pending = pendingSellerSimTimers[conversationId];
+  if (pending) {
+    clearTimeout(pending.readTimer);
+    clearTimeout(pending.replyTimer);
+  }
+
   const readDelay = 900 + Math.random() * 900;
   const replyDelay = readDelay + 1800 + Math.random() * 1800;
 
-  setTimeout(() => markAllBuyerMessagesRead(conversationId), readDelay);
+  const readTimer = setTimeout(() => markAllBuyerMessagesRead(conversationId), readDelay);
 
-  setTimeout(() => {
+  const replyTimer = setTimeout(() => {
+    delete pendingSellerSimTimers[conversationId];
     const list = readConversations();
     const conv = list.find((c) => c.id === conversationId);
     if (!conv) return;
@@ -220,6 +246,8 @@ function simulateSellerResponse(conversationId) {
     writeConversations(list);
     notifyMessagesUpdated();
   }, replyDelay);
+
+  pendingSellerSimTimers[conversationId] = { readTimer, replyTimer };
 
   window.dispatchEvent(new CustomEvent("marka:seller-typing", { detail: { conversationId, delay: replyDelay } }));
 }

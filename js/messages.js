@@ -186,6 +186,7 @@ function openConversation(id) {
   document.getElementById("msgShell").classList.add("msg-shell--chat-open");
   document.body.classList.add("msg-chat-active");
   hideTyping();
+  setComposerError("");
   renderThreadList();
   renderPanel();
 
@@ -206,7 +207,15 @@ function clearComposer() {
   msgState.pendingImage = null;
   document.getElementById("msgImagePreview").classList.remove("visible");
   document.getElementById("msgFileInput").value = "";
+  setComposerError("");
   updateSendButtonState();
+}
+
+function setComposerError(message) {
+  const el = document.getElementById("msgComposerError");
+  if (!el) return;
+  el.textContent = message || "";
+  el.hidden = !message;
 }
 
 function updateSendButtonState() {
@@ -223,7 +232,15 @@ function handleSend() {
   const text = input.value.trim();
   if (!text && !msgState.pendingImage) return;
 
-  sendBuyerMessage(msgState.activeId, { text, image: msgState.pendingImage });
+  const { error } = sendBuyerMessage(msgState.activeId, { text, image: msgState.pendingImage });
+  if (error) {
+    // Don't clear the composer — the message never actually persisted, so
+    // clearing it here is exactly what made a sent message look like it
+    // silently disappeared. Keep the text in place and tell the person why.
+    setComposerError(error);
+    return;
+  }
+  setComposerError("");
   clearComposer();
   renderThreadList();
   renderPanel();

@@ -42,6 +42,38 @@ function refreshIcons() {
   if (window.lucide) window.lucide.createIcons();
 }
 
+/* --------------------------------- Sheets (full-screen) ------------------------------- */
+// Shared open/close for the full-screen pickers (Categories/Location/Filters
+// on Search, Location on Sell, etc.) — each covers the whole page while
+// open, same idea as Facebook Marketplace's category/location pickers, so
+// the person can focus on just that choice. Shared here so every page that
+// uses a sheet (not just browse.html) behaves identically.
+function openSheet(id) {
+  const overlay = document.getElementById(id);
+  overlay.hidden = false;
+  document.body.classList.add("sheet-open");
+  requestAnimationFrame(() => overlay.classList.add("open"));
+}
+
+function closeSheet(id) {
+  const overlay = document.getElementById(id);
+  overlay.classList.remove("open");
+  document.body.classList.remove("sheet-open");
+  setTimeout(() => {
+    overlay.hidden = true;
+  }, 280);
+}
+
+function wireSheetDismiss(id, onClose) {
+  const overlay = document.getElementById(id);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) {
+      closeSheet(id);
+      if (onClose) onClose();
+    }
+  });
+}
+
 // Card/gallery media background: real uploaded photos (data-URL strings) take
 // priority, falling back to the gradient-pair placeholders the demo data uses.
 function cardMediaStyle(item) {

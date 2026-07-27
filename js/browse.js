@@ -50,8 +50,13 @@ function getRequestedOrigin() {
   const params = new URLSearchParams(window.location.search);
   const lat = Number(params.get("lat"));
   const lng = Number(params.get("lng"));
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  return { lat, lng, label: params.get("loc") || "Saved location", isMe: false };
+  const loc = params.get("loc");
+  // A lat/lng with no real place name isn't something to silently filter
+  // by — that's how a stray/incomplete link (or an old saved search from
+  // before this was required) ends up landing on an empty "Saved location"
+  // filter with 0 results and no visible way to tell why. Require all three.
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !loc) return null;
+  return { lat, lng, label: loc, isMe: false };
 }
 
 const state = {
@@ -169,6 +174,13 @@ function renderFilterOptions() {
   const condSel = document.getElementById("filterCondition");
   condSel.innerHTML = BROWSE_CONDITION_OPTIONS.map((c) => `<option value="${c}">${c}</option>`).join("");
   condSel.value = state.condition;
+
+  // The price filter used to show a hardcoded "$" no matter what currency the
+  // shopper actually uses — now it reflects whatever currency is
+  // selected/detected, same as every price shown elsewhere in the app.
+  const symbol = typeof currencySymbol === "function" ? currencySymbol() : "$";
+  document.getElementById("filterPriceMinSymbol").textContent = symbol;
+  document.getElementById("filterPriceMaxSymbol").textContent = symbol;
 
   document.getElementById("filterPriceMin").value = state.minPrice ?? "";
   document.getElementById("filterPriceMax").value = state.maxPrice ?? "";
@@ -419,37 +431,9 @@ function renderMapView(list) {
   }
 }
 
-/* --------------------------------- Sheets (full-screen) ------------------------------- */
-// Shared open/close for the three full-screen pickers below — each covers the
-// whole page while open, same idea as Facebook Marketplace's category/location
-// pickers, so the person can focus on just that choice.
-function openSheet(id) {
-  const overlay = document.getElementById(id);
-  overlay.hidden = false;
-  document.body.classList.add("sheet-open");
-  requestAnimationFrame(() => overlay.classList.add("open"));
-}
-
-function closeSheet(id) {
-  const overlay = document.getElementById(id);
-  overlay.classList.remove("open");
-  document.body.classList.remove("sheet-open");
-  setTimeout(() => {
-    overlay.hidden = true;
-  }, 280);
-}
-
-function wireSheetDismiss(id, onClose) {
-  const overlay = document.getElementById(id);
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) {
-      closeSheet(id);
-      if (onClose) onClose();
-    }
-  });
-}
-
 /* ------------------------------- Categories sheet -------------------------------- */
+// openSheet/closeSheet/wireSheetDismiss now live in js/common.js so sell.js's
+// Location sheet can reuse the exact same open/close behaviour.
 function renderCategoryTiles() {
   const grid = document.getElementById("catTileGrid");
   const tiles = [

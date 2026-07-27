@@ -67,7 +67,10 @@ function writeSavedSearches(list) {
 // GPS fix — never a hardcoded province/city — via origin.lat/origin.lng.
 function saveSearch(filters) {
   const list = readSavedSearches();
-  const origin = filters.origin || null;
+  // An origin with no real place name (label) can't be reproduced as a
+  // meaningful filter later — see js/browse.js's getRequestedOrigin, which
+  // now requires a label — so treat it the same as "no location set" here.
+  const origin = filters.origin && filters.origin.label ? filters.origin : null;
   const record = {
     id: newSavedSearchId(),
     query: (filters.query || "").trim(),
