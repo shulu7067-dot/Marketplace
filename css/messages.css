@@ -374,6 +374,16 @@ body.chat-page .shell > *:not(.msg-shell) { flex-shrink: 0; }
 }
 
 /* --------------------------------- Composer -------------------------------------- */
+.msg-composer-error {
+  margin: 0 16px 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #F6E2DC;
+  color: #C13F3F;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .msg-composer {
   display: flex;
   align-items: flex-end;
