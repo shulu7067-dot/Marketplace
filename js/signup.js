@@ -68,9 +68,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       toast.hidden = false;
-      const email = encodeURIComponent(emailInput.value.trim());
       setTimeout(() => {
-        window.location.href = `verify-email.html?email=${email}`;
+        window.location.href = "profile.html";
       }, 700);
     }, 600);
   });

@@ -43,10 +43,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       const { error } = await MarkaAuth.signIn(emailInput.value.trim(), passwordInput.value);
 
       if (error) {
-        if (/email not confirmed/i.test(error.message || "")) {
-          window.location.href = `verify-email.html?email=${encodeURIComponent(emailInput.value.trim())}`;
-          return;
-        }
         setFieldError(passwordGroup, authErrorMessage(error));
         return;
       }
