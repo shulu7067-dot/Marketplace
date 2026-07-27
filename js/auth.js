@@ -211,6 +211,7 @@ const MarkaAuth = {
 // Friendlier copy for the handful of Supabase auth errors users actually hit.
 function authErrorMessage(error) {
   if (!error) return "";
+  console.error("Supabase auth error:", error); // <-- new: logs the real error to console
   const msg = error.message || String(error);
   if (/invalid login credentials/i.test(msg)) return "That email and password don't match our records.";
   if (/email not confirmed/i.test(msg)) return "Please verify your email before logging in.";
